@@ -175,22 +175,29 @@ with CISA KEV and EPSS). Base URL: `https://mitre-explorer.org`.
    plus a paginated `cves[]` array (`cveId`, `cvssSeverity`, `isKev`, `publishedAt`, …).
 3. **Get version ranges per CVE** — `GET /api/v1/cves/{cveId}` returns
    `affectedApps[].versionStart` / `versionEnd`. **Match the detected version here, on our
-   side** — there is no server-side version filter.
+   side** — this range check is the source of truth for what's actually affected.
 
 **Endpoints:**
 
 | Endpoint | Purpose | Key params | Version filter? |
 |---|---|---|---|
-| `GET /api/v1/applications` | Search apps / resolve slug | `search`, `vendor`, `page`, `limit`, `sort` | No |
-| `GET /api/v1/applications/{vendor}/{product}` | An app + its CVEs | path slug `^[a-z0-9/]+$`, `page`, `limit` | No |
-| `GET /api/v1/cves` | CVE list, filter by app name | `app` (substring), `severity`, `since`, `technique`, `page` | No |
-| `GET /api/v1/cves/{cveId}` | Full CVE incl. version ranges | path `CVE-YYYY-NNNN` | Returns `versionStart`/`versionEnd` |
-| `POST /api/a2a` | JSON-RPC skills: `get_application_security`, `search_applications`, `search_cves`, `get_cve_detail` | per skill | No |
+| `GET /api/v1/applications` | Search apps / resolve slug | `search`, `vendor`, `version`\*, `page`, `limit`, `sort` | Coarse\* (needs `search`/`vendor`) |
+| `GET /api/v1/applications/{vendor}/{product}` | An app + its CVEs | path slug `^[a-z0-9/]+$`, `version`\*, `page`, `limit` | Coarse\* |
+| `GET /api/v1/cves` | CVE list, filter by app name | `app` (substring), `version`\*, `severity`, `since`, `technique` | Coarse\* (needs `app`) |
+| `GET /api/v1/cves/{cveId}` | Full CVE incl. version ranges | path `CVE-YYYY-NNNN`, `version`\* | Returns ranges; `version`\* narrows |
+| `POST /api/a2a` | JSON-RPC skills: `get_application_security`, `search_applications`, `search_cves`, `get_cve_detail` | per skill (+ `version`\*) | Coarse\* |
+
+\* `version` is an optional, non-breaking param — a coarse **substring** match on the stored
+version boundaries, **not** a semantic "is this version in range" check (see gotchas).
+Pending deploy of mitre-explorer.
 
 **Gotchas (verified against the mitre-explorer source):**
 
-- **No version or CPE filter** on any endpoint — narrow to the detected version client-side
-  using each CVE's `versionStart`/`versionEnd`.
+- **`version=` is a coarse pre-filter, not a verdict.** The optional `version` param does a
+  **substring** match on `version_start`/`version_end` (so `2.5` also matches `12.5.1`, and
+  misses a `2.0`–`3.0` range that contains 2.5). Use it to shrink results, then **do the real
+  version-range match client-side** — that stays the source of truth. (CPE is still not
+  filterable.)
 - The `?app=` filter is a substring (ILIKE) match and **over-matches** (e.g. `http` hits
   many products) — prefer the slug route for accuracy.
 - Newly-published CVEs may show an empty `affectedApps` until NVD CPE enrichment lands
