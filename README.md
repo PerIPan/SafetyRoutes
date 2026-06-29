@@ -123,6 +123,39 @@ That is the full scope for the bootcamp — **applications (cross-referenced to 
 **web scanning**. Every other Artemis module stays off by default; more tracks can be added
 to the wizard later.
 
+## How it works — step by step
+
+The **wizard runs first** and decides what gets scanned; the actual scanning (including
+Nuclei) only runs afterwards, using the wizard's choices.
+
+```mermaid
+flowchart TD
+    A([Org opts in — consent recorded]) --> B[1. Wizard: a few simple questions]
+    B --> C[2. Fingerprint the site<br/>Artemis: webapp_identifier, port_scanner, CMS version checks]
+    C --> D[3. Wizard picks Artemis modules<br/>from the answers + fingerprint]
+    D --> E[4a. Applications track<br/>scan apps + run Nuclei CVE templates]
+    D --> F[4b. Web track<br/>vcs · bruter · robots · directory_index · subdomain_enum]
+    E --> G[5. Cross-reference app + version<br/>with mitre-explorer CVEs — version-filtered]
+    F --> H[6. Collect all findings]
+    G --> H
+    H --> I[7. Plain-language report<br/>Confirmed · Possible–check · No issue found]
+    I --> J([8. stretch: re-scan to confirm fixes + reminders])
+```
+
+1. **Opt in** — the organization gives permission; we record consent.
+2. **Wizard questions** — a few plain questions about the org and its website.
+3. **Fingerprint** — Artemis detects what software (and version) the site runs.
+4. **Pick modules** — the wizard turns answers + fingerprint into the module set
+   (Applications + Web only, for the bootcamp).
+5. **Scan** — Artemis runs the chosen modules; the **Applications** track runs Nuclei's
+   CVE templates, the **Web** track checks for exposed files and misconfigurations.
+6. **Cross-reference CVEs** — detected app + version is matched to mitre-explorer's
+   known CVEs, filtered to that version.
+7. **Reconcile** — every relevant CVE is marked **Confirmed**, **Possible — needs manual
+   check**, or **No issue found**.
+8. **Report** — results are written up in plain language. *(Stretch: re-scan later to
+   confirm fixes and send reminders.)*
+
 ## Proposed approach
 
 > _Draft proposal for the bootcamp challenge — open to revision._
