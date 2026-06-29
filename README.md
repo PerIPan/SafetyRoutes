@@ -79,9 +79,11 @@ built and maintained by [CERT Polska](https://cert.pl/) (CERT PL).
 - **Extensible:** a modular architecture allows custom modules, which is how we intend
   to extend it for SafetyRoutes' use cases.
 - **Built-in CVE checks & fingerprinting:** Artemis bundles
-  [**Nuclei**](https://github.com/projectdiscovery/nuclei) (`nuclei-module`) to run
-  template-based checks for known CVEs, and fingerprints the software a site runs — so we
-  rely on **one** engine rather than running a second scanner.
+  [**Nuclei**](https://github.com/projectdiscovery/nuclei) as **two cooperating modules**
+  (both must be enabled): `nuclei-router` works out which templates fit the site, then
+  `nuclei-module` runs the `nuclei` tool against it — a curated, high-severity subset, not
+  every template. Artemis also fingerprints the software a site runs, so we rely on **one**
+  engine rather than running a second scanner.
 - **Deployment:** runs via Docker and Docker Compose (development mode via
   `./scripts/start --mode=development`).
 - **License:** BSD-3-Clause.
@@ -101,13 +103,14 @@ a few days:
 
 - Artemis **fingerprints the software** a site runs, and its **version where possible** —
   `webapp_identifier`, `port_scanner`, and CMS version checks (WordPress / Drupal / Joomla).
-- Each detected app + version is matched against
-  [**mitre-explorer.org**](https://mitre-explorer.org), which links 11K+ products to their
-  known CVEs (prioritized with CISA KEV and EPSS exploit-probability data). Only CVEs
-  affecting the **detected version** are considered — not the app's entire history. If a
-  version can't be determined, the report says so rather than guessing.
-- Artemis runs **Nuclei CVE templates** (`nuclei-module`) to actively test the
-  high-priority ones.
+- Each detected app is looked up in [**mitre-explorer.org**](https://mitre-explorer.org),
+  which links 11K+ products to their known CVEs (prioritized with CISA KEV and EPSS). It
+  returns the app's **full** CVE list with per-CVE version ranges; **we then keep only the
+  CVEs that affect the detected version, matching on our side** (mitre-explorer has no
+  version filter of its own). If a version can't be determined, the report says so rather
+  than guessing.
+- Artemis runs its **Nuclei** modules (`nuclei-router` + `nuclei-module`, both required) to
+  actively test the high-priority checks.
 - Each relevant CVE is reported in one of three clear states:
   - **Confirmed** — the scan actively verified it.
   - **Possible — needs manual check** — known to affect the detected app/version but not
@@ -133,9 +136,9 @@ flowchart TD
     A([Org opts in — consent recorded]) --> B[1. Wizard: a few simple questions]
     B --> C[2. Fingerprint the site<br/>Artemis: webapp_identifier, port_scanner, CMS version checks]
     C --> D[3. Wizard picks Artemis modules<br/>from the answers + fingerprint]
-    D --> E[4a. Applications track<br/>scan apps + run Nuclei CVE templates]
+    D --> E[4a. Applications track<br/>scan apps + Nuclei: router picks templates, runner runs them]
     D --> F[4b. Web track<br/>vcs · bruter · robots · directory_index · subdomain_enum]
-    E --> G[5. Cross-reference app + version<br/>with mitre-explorer CVEs — version-filtered]
+    E --> G[5. Look up app CVEs in mitre-explorer<br/>then match the detected version on our side]
     F --> H[6. Collect all findings]
     G --> H
     H --> I[7. Plain-language report<br/>Confirmed · Possible–check · No issue found]
@@ -147,10 +150,11 @@ flowchart TD
 3. **Fingerprint** — Artemis detects what software (and version) the site runs.
 4. **Pick modules** — the wizard turns answers + fingerprint into the module set
    (Applications + Web only, for the bootcamp).
-5. **Scan** — Artemis runs the chosen modules; the **Applications** track runs Nuclei's
-   CVE templates, the **Web** track checks for exposed files and misconfigurations.
-6. **Cross-reference CVEs** — detected app + version is matched to mitre-explorer's
-   known CVEs, filtered to that version.
+5. **Scan** — Artemis runs the chosen modules. The **Applications** track uses Nuclei (its
+   `nuclei-router` picks the templates that fit, then `nuclei-module` runs them); the
+   **Web** track checks for exposed files and misconfigurations.
+6. **Cross-reference CVEs** — look up the app's known CVEs in mitre-explorer, then keep the
+   ones affecting the detected version (matched on our side).
 7. **Reconcile** — every relevant CVE is marked **Confirmed**, **Possible — needs manual
    check**, or **No issue found**.
 8. **Report** — results are written up in plain language. *(Stretch: re-scan later to
