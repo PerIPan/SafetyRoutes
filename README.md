@@ -4,6 +4,28 @@ A vulnerability scanning tool for identifying security weaknesses across applica
 
 > **Status:** early development — project scaffolding in progress.
 
+## In plain words
+
+Think of SafetyRoutes as a friendly **health check-up for your organization's website**.
+
+Many small charities, non-profits, and small businesses (we call them *local community
+organizations*) don't have a tech team — but they're still targets for ransomware and
+other online attacks. The weak spots are often simple things left open by accident, like
+an unlocked back door, that criminals can find automatically.
+
+With the organization's permission, SafetyRoutes looks over their website for these common
+weak spots and then explains what it found in **everyday language**: what the problem is,
+why it matters, and the simple steps to fix it. Later, it checks again to confirm the fix
+worked, and sends a gentle reminder if anything is still open.
+
+Behind the scenes it uses two trusted, free security tools — **Artemis** does the thorough
+checking and writes the reports, and **Nuclei** works out what software a site runs so the
+check-up is tailored and the results are easier to explain. We only ever scan organizations
+that have asked us to, and we do it carefully so nothing breaks.
+
+The goal is simple: help the organizations that protect our communities lower their risk —
+without needing to be security experts themselves.
+
 ---
 
 ## RANSOMWARE DEFENCE SUMMER BOOTCAMP
