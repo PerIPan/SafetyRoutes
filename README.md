@@ -4,6 +4,37 @@ A vulnerability scanning tool for identifying security weaknesses across applica
 
 > **Status:** early development — project scaffolding in progress.
 
+---
+
+## RANSOMWARE DEFENCE SUMMER BOOTCAMP
+*by Virtual Routes — @ Amsterdam Business School, 29 June – 3 July 2026*
+
+### Decreasing Exposure Through Vulnerability Scanning
+
+Design and develop a basic vulnerability scanning pipeline, focusing on vulnerabilities
+that are common for Local Community Organizations (LCOs), such as SMEs or non-profits.
+The sessions will help participants understand what vulnerability scanning is exactly,
+how to conduct scans responsibly, how this helps to protect organizations, and how such
+information should be communicated with a non-technical audience to stimulate awareness
+and action.
+
+**The sessions should:**
+
+- Focus on common risks and vulnerabilities among Local Community Organizations
+- Adhere to the ethical guidelines that correspond with good-faith security research
+- Minimize the risks associated with vulnerability scanning
+- Communicate findings in a clear and comprehensible manner
+- Focus on automation and scale
+
+**Suggestions for achieving higher impact:**
+
+- Use CERT-PL's Artemis framework to set up automated scanning
+- Select scanning modules based on open-source threat landscapes for NGOs
+- Find a middle ground between technical details and actionable information
+- Develop a way to confirm remediation of a vulnerability and send reminders
+
+---
+
 ## Overview
 
 SafetyRoutes aims to help developers and security teams discover, prioritize, and
