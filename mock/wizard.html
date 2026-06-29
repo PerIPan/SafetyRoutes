@@ -21,33 +21,22 @@
   *{box-sizing:border-box}
   html,body{margin:0}
   body{font-family:var(--body);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased}
-  .board{display:flex;flex-direction:column;gap:42px;padding:42px;background:
-      radial-gradient(1200px 600px at 80% -10%, #E4EDEB, transparent),
-      var(--paper)}
-  .board-head{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .board{display:flex;flex-direction:column;gap:42px;padding:42px;background:radial-gradient(1200px 600px at 80% -10%,#E4EDEB,transparent),var(--paper)}
 
-  /* ----- one wizard screen ----- */
-  .screen{
-    width:1280px;min-height:812px;background:var(--surface);
-    display:grid;grid-template-columns:286px 1fr;overflow:hidden;
-    border-radius:20px;box-shadow:var(--shadow);border:1px solid var(--line);
-    margin:0 auto;
-  }
+  .screen{width:1280px;min-height:824px;background:var(--surface);display:grid;grid-template-columns:288px 1fr;overflow:hidden;border-radius:20px;box-shadow:var(--shadow);border:1px solid var(--line);margin:0 auto}
   body.solo{background:#dde6e4;padding:0}
-  body.solo .screen{border-radius:0;box-shadow:none;border:none;min-height:100vh}
   body.solo .board{padding:0;gap:0;background:none}
+  body.solo .screen{border-radius:0;box-shadow:none;border:none;min-height:100vh}
 
-  /* ----- route rail (the signature) ----- */
-  .rail{background:var(--ink);color:#EAF2F1;padding:30px 26px 26px;position:relative;display:flex;flex-direction:column}
-  .brand{display:flex;align-items:center;gap:11px;margin-bottom:34px}
+  /* route rail */
+  .rail{background:var(--ink);color:#EAF2F1;padding:30px 26px 24px;display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:11px;margin-bottom:30px}
   .brand .mark{width:34px;height:34px;flex:none}
   .brand b{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:-.01em}
   .brand small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:#7FB0B3;text-transform:uppercase;margin-top:2px}
-
   .route{position:relative;padding-left:6px;flex:1}
-  .route::before{content:"";position:absolute;left:15px;top:10px;bottom:34px;width:2px;
-     background:linear-gradient(var(--route) 0 var(--fill,0%), #2C4A57 var(--fill,0%) 100%)}
-  .stop{position:relative;display:flex;align-items:flex-start;gap:14px;padding:11px 0}
+  .route::before{content:"";position:absolute;left:15px;top:10px;bottom:30px;width:2px;background:linear-gradient(var(--route) 0 var(--fill,0%),#2C4A57 var(--fill,0%) 100%)}
+  .stop{position:relative;display:flex;align-items:flex-start;gap:14px;padding:10px 0}
   .stop .dot{width:20px;height:20px;border-radius:50%;flex:none;border:2px solid #3A5763;background:var(--ink);z-index:1;margin-top:1px;display:grid;place-items:center}
   .stop .dot::after{content:"";width:6px;height:6px;border-radius:50%;background:#3A5763}
   .stop.done .dot{border-color:var(--route);background:var(--route)}
@@ -55,253 +44,233 @@
   .stop.active .dot{border-color:var(--route);background:var(--ink);box-shadow:0 0 0 5px rgba(14,156,165,.22)}
   .stop.active .dot::after{background:var(--route);width:8px;height:8px}
   .stop .code{font-family:var(--mono);font-size:10px;color:#6E929A;letter-spacing:.1em}
-  .stop .label{font-size:14px;color:#A7C2C4;font-weight:500;margin-top:1px}
+  .stop .label{font-size:14px;color:#A7C2C4;font-weight:500;margin-top:1px;line-height:1.2}
   .stop.active .label{color:#fff;font-weight:600}
   .stop.done .label{color:#cfe0df}
-  .rail .foot{font-family:var(--mono);font-size:10px;color:#6E929A;letter-spacing:.04em;border-top:1px solid #2C4A57;padding-top:14px;margin-top:8px}
+  .rail .foot{font-family:var(--mono);font-size:10px;color:#6E929A;letter-spacing:.04em;border-top:1px solid #2C4A57;padding-top:13px;margin-top:6px;line-height:1.5}
 
-  /* ----- main content ----- */
-  .main{padding:40px 48px 36px;display:flex;flex-direction:column;position:relative}
-  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
-  .consent-chip{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--route-deep);background:#E2F1F0;border:1px solid #C2E1DF;border-radius:999px;padding:6px 12px}
+  /* main */
+  .main{padding:38px 46px 32px;display:flex;flex-direction:column;position:relative}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px}
+  .consent-chip{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--route-deep);background:#E2F1F0;border:1px solid #C2E1DF;border-radius:999px;padding:6px 12px}
   .consent-chip .pulse{width:7px;height:7px;border-radius:50%;background:var(--route)}
   .stepcount{font-family:var(--mono);font-size:12px;color:var(--muted)}
-
-  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--route-deep);margin:0 0 14px}
-  h1{font-family:var(--disp);font-weight:600;font-size:38px;line-height:1.06;letter-spacing:-.02em;margin:0 0 14px;max-width:18ch}
-  .lede{font-size:16px;line-height:1.55;color:var(--ink-soft);max-width:54ch;margin:0 0 26px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--route-deep);margin:0 0 12px}
+  h1{font-family:var(--disp);font-weight:600;font-size:35px;line-height:1.07;letter-spacing:-.02em;margin:0 0 12px;max-width:20ch}
+  .lede{font-size:15.5px;line-height:1.55;color:var(--ink-soft);max-width:58ch;margin:0 0 22px}
   .grow{flex:1}
 
-  .field{margin-bottom:18px;max-width:430px}
-  .field label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:7px}
+  .field{margin-bottom:16px;max-width:440px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}
   .input{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;background:#FBFDFC;padding:13px 15px}
   .input .pre{font-family:var(--mono);font-size:13px;color:var(--muted)}
   .input input{border:none;background:none;outline:none;font-family:var(--body);font-size:15px;color:var(--ink);width:100%}
   .input.focus{border-color:var(--route);box-shadow:0 0 0 4px rgba(14,156,165,.14)}
-
-  .check{display:flex;gap:12px;align-items:flex-start;max-width:460px;margin-bottom:8px;cursor:default}
+  .check{display:flex;gap:12px;align-items:flex-start;max-width:470px;margin-bottom:8px}
   .check .box{width:22px;height:22px;border-radius:7px;border:2px solid var(--route);background:var(--route);flex:none;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-  .check .t{font-size:14px;color:var(--ink-soft);line-height:1.4}
-  .check .t b{color:var(--ink)}
+  .check .t{font-size:14px;color:var(--ink-soft);line-height:1.4}.check .t b{color:var(--ink)}
+  .note{display:flex;gap:11px;background:#F3F8F7;border:1px solid var(--line);border-left:3px solid var(--route);border-radius:10px;padding:13px 15px;max-width:560px;margin-top:8px}
+  .note .ic{font-size:15px}.note p{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.5}.note b{color:var(--ink)}
 
-  .note{display:flex;gap:12px;background:#F3F8F7;border:1px solid var(--line);border-left:3px solid var(--route);border-radius:10px;padding:14px 16px;max-width:540px;margin-top:8px}
-  .note .ic{font-size:16px;line-height:1.3}
-  .note p{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.5}
-  .note b{color:var(--ink)}
-
-  /* questions */
-  .q{margin-bottom:24px;max-width:660px}
-  .q .qt{font-size:15px;font-weight:600;margin-bottom:11px;display:flex;align-items:center;gap:9px}
-  .q .qt .n{font-family:var(--mono);font-size:11px;color:#fff;background:var(--ink);border-radius:6px;padding:2px 7px}
-  .chips{display:flex;flex-wrap:wrap;gap:9px}
-  .chip{font-size:13.5px;font-weight:500;border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);border-radius:999px;padding:9px 16px}
-  .chip.sel{border-color:var(--route);background:var(--route);color:#fff}
-  .maps{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:9px}
-  .maps b{color:var(--route-deep);font-weight:700}
-
-  /* track cards */
-  .tracks{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:760px}
-  .tcard{border:1.5px solid var(--line);border-radius:16px;padding:20px;background:#FBFDFC;position:relative}
-  .tcard.on{border-color:var(--route);background:#fff;box-shadow:0 10px 28px -20px rgba(14,156,165,.6)}
-  .tcard h3{font-family:var(--disp);font-weight:600;font-size:19px;margin:0 0 8px;letter-spacing:-.01em}
-  .tcard p{margin:0 0 14px;font-size:13.5px;line-height:1.5;color:var(--ink-soft)}
-  .toggle{position:absolute;top:18px;right:18px;width:44px;height:25px;border-radius:999px;background:var(--route);display:flex;align-items:center;padding:3px;justify-content:flex-end}
+  /* source cards (S2) */
+  .sources{display:flex;flex-direction:column;gap:14px;max-width:760px}
+  .scard2{display:grid;grid-template-columns:46px 1fr auto;gap:16px;border:1.5px solid var(--line);border-radius:15px;padding:18px 20px;background:#FBFDFC;align-items:start}
+  .scard2.on{border-color:var(--route);background:#fff;box-shadow:0 10px 26px -20px rgba(14,156,165,.6)}
+  .scard2 .ic{width:46px;height:46px;border-radius:12px;background:#E5F2F1;display:grid;place-items:center;font-size:22px}
+  .scard2 h3{font-family:var(--disp);font-weight:600;font-size:18px;margin:0 0 3px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  .scard2 .toolb{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:#fff;background:var(--ink);border-radius:5px;padding:2px 7px}
+  .scard2 p{margin:4px 0 9px;font-size:13.5px;line-height:1.5;color:var(--ink-soft)}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .meta .m{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .conf{font-family:var(--mono);font-size:10.5px;font-weight:700;border-radius:6px;padding:3px 8px;letter-spacing:.02em}
+  .conf.cfm{color:var(--safe);background:#E3F1EB}.conf.adv{color:#A66A12;background:#FBF1E0}
+  .toggle{width:44px;height:25px;border-radius:999px;background:var(--route);display:flex;align-items:center;padding:3px;justify-content:flex-end;margin-top:3px}
   .toggle::after{content:"";width:19px;height:19px;border-radius:50%;background:#fff}
   .toggle.off{background:#C3CFCD;justify-content:flex-start}
-  .modchips{display:flex;flex-wrap:wrap;gap:6px}
-  .mod{font-family:var(--mono);font-size:11px;color:var(--route-deep);background:#E5F2F1;border-radius:6px;padding:4px 8px}
-  .mod.muted{color:var(--muted);background:#EDF1F0}
-  .offstrip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;max-width:760px;background:#F4F6F5;border:1px dashed var(--line);border-radius:12px;padding:13px 16px}
-  .offstrip .ol{font-size:13px;color:var(--muted);font-weight:600}
+  .inputby{font-family:var(--mono);font-size:11px;color:var(--route-deep)}
 
-  /* devices / self-declare */
-  .invsearch{max-width:540px}
-  .swchips{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px;max-width:600px}
-  .sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 13px}
-  .sw .v{font-family:var(--mono);font-size:11px;color:var(--muted)}
-  .sw .x{color:var(--muted)}
-  .sw .tag{font-size:10px;font-family:var(--mono);color:var(--check);background:#FBF1E0;border-radius:5px;padding:2px 6px;letter-spacing:.03em}
-  .trivy{display:flex;gap:13px;align-items:flex-start;max-width:560px;margin-top:22px;border:1.5px solid var(--line);border-radius:14px;padding:16px 18px;background:#FBFDFC}
-  .trivy .badge{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:#fff;background:var(--safe);border-radius:6px;padding:3px 8px;flex:none;margin-top:2px}
-  .trivy h4{margin:0 0 4px;font-size:14px}
-  .trivy p{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.5}
-  .trivy code{font-family:var(--mono);font-size:12px;background:#EDF3F2;padding:1px 6px;border-radius:5px}
+  /* trivy command + upload (S3) */
+  .cmd{font-family:var(--mono);font-size:13px;color:#CDE7E6;background:#10262F;border-radius:11px;padding:14px 16px;max-width:620px;line-height:1.5;border:1px solid #21424C;overflow:hidden}
+  .cmd .pmt{color:#5E929A}.cmd .fl{color:#E0B563}
+  .drop{margin-top:16px;max-width:620px;border:1.6px dashed #B7CFCC;border-radius:13px;background:#FAFDFC;padding:18px 18px;display:flex;align-items:center;gap:15px}
+  .drop.has{border-style:solid;border-color:var(--route);background:#fff}
+  .drop .fic{width:42px;height:42px;border-radius:10px;background:#E5F2F1;display:grid;place-items:center;font-size:19px;flex:none}
+  .drop .fmeta b{font-size:14px}.drop .fmeta .fs{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
+  .drop .ok{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--safe);background:#E3F1EB;border-radius:6px;padding:4px 9px}
+  .parsed{margin-top:16px;max-width:760px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .parsed .ph{font-family:var(--mono);font-size:11px;color:var(--muted);background:#F4F6F5;padding:8px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .prow{display:grid;grid-template-columns:1fr 92px 120px 78px;gap:10px;padding:9px 14px;font-family:var(--mono);font-size:11.5px;border-bottom:1px solid #EEF2F1;align-items:center}
+  .prow:last-child{border-bottom:none}
+  .prow .purl{color:var(--ink)}.prow .iv{color:var(--muted)}.prow .fx{color:var(--safe)}
+  .sev{font-weight:700;border-radius:5px;padding:2px 6px;text-align:center;font-size:10px}
+  .sev.cr{color:var(--risk);background:#F8E7E2}.sev.hi{color:#A6491f;background:#FBEADF}.sev.me{color:#A66A12;background:#FBF1E0}
 
-  /* scanning */
-  .stages{max-width:620px;margin-top:6px}
-  .stage{display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line)}
-  .stage:last-child{border-bottom:none}
-  .stage .si{width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:13px;font-weight:700}
+  /* manual rows (S4) */
+  .rows{max-width:680px;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px}
+  .rowh,.row{display:grid;grid-template-columns:1fr 1.4fr 0.9fr 30px;gap:12px;padding:11px 16px;align-items:center}
+  .rowh{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;background:#F4F6F5;border-bottom:1px solid var(--line)}
+  .row{border-bottom:1px solid #EEF2F1;font-size:13.5px}.row:last-child{border-bottom:none}
+  .row .vn{font-weight:600}.row .vv{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft)}.row .x{color:var(--muted);text-align:center}
+  .row.add{background:#FBFDFC}.row.add .ph{color:var(--muted)}
+  .row.add .plus{font-family:var(--mono);color:var(--route-deep);font-weight:700}
+
+  /* checking (S5) */
+  .grpc{max-width:720px}
+  .grp{margin-bottom:18px}
+  .grp .gh{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px;margin-bottom:8px}
+  .grp .gh .src{font-family:var(--mono);font-size:10px;color:#fff;border-radius:5px;padding:3px 8px}
+  .src.art{background:#0E9CA5}.src.tri{background:#2F6F4E}.src.man{background:#9C6B1C}
+  .grp .gh .tgt{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .stage{display:flex;align-items:center;gap:12px;padding:8px 0 8px 6px}
+  .stage .si{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700}
   .stage.done .si{background:var(--safe);color:#fff}
   .stage.run .si{background:#fff;border:2px solid var(--route);color:var(--route)}
   .stage.wait .si{background:#EDF1F0;color:var(--muted);border:1px solid var(--line)}
-  .stage .st{font-size:15px;font-weight:600}
-  .stage .ss{font-size:12.5px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
-  .stage.run .st{color:var(--route-deep)}
-  .stage.wait .st{color:var(--muted);font-weight:500}
-  .scanfoot{margin-top:24px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .stage .st{font-size:13.5px;font-weight:500}.stage.wait .st{color:var(--muted)}
+  .stage .ss{font-size:11.5px;color:var(--muted);margin-top:1px;font-family:var(--mono)}
+  .stage.run .st{color:var(--route-deep);font-weight:600}
 
-  /* report */
-  .summary{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap}
-  .scard{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:12px;padding:11px 16px;background:#fff}
-  .scard .num{font-family:var(--disp);font-weight:700;font-size:26px;line-height:1}
-  .scard .lbl{font-size:12px;color:var(--muted);line-height:1.25;max-width:11ch}
-  .scard.risk .num{color:var(--risk)} .scard.check .num{color:var(--check)} .scard.safe .num{color:var(--safe)}
-  .findings{display:flex;flex-direction:column;gap:11px;max-width:780px}
-  .finding{display:flex;gap:14px;border:1px solid var(--line);border-radius:13px;padding:15px 17px;background:#fff}
-  .pill{font-size:11px;font-weight:700;font-family:var(--mono);letter-spacing:.02em;border-radius:999px;padding:5px 11px;flex:none;height:fit-content;white-space:nowrap}
-  .pill.risk{background:#F8E7E2;color:var(--risk)} .pill.check{background:#FBF1E0;color:#A66A12} .pill.safe{background:#E3F1EB;color:var(--safe)}
-  .finding .ft{font-size:14.5px;font-weight:600;margin:1px 0 5px}
-  .finding .fd{font-size:13px;color:var(--ink-soft);line-height:1.5}
-  .finding .fd .fix{color:var(--ink);font-weight:600}
-  .finding .src{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:7px}
+  /* report (S6) */
+  .summary{display:flex;gap:11px;margin-bottom:18px;flex-wrap:wrap}
+  .scard{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:12px;padding:10px 15px;background:#fff}
+  .scard .num{font-family:var(--disp);font-weight:700;font-size:24px;line-height:1}
+  .scard .lbl{font-size:11.5px;color:var(--muted);line-height:1.25;max-width:12ch}
+  .scard.risk .num{color:var(--risk)}.scard.check .num{color:var(--check)}.scard.safe .num{color:var(--safe)}
+  .findings{display:flex;flex-direction:column;gap:10px;max-width:800px}
+  .finding{display:grid;grid-template-columns:auto auto 1fr;gap:13px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff;align-items:start}
+  .srcchip{font-family:var(--mono);font-size:10px;font-weight:700;border-radius:6px;padding:5px 9px;height:fit-content;white-space:nowrap;color:#fff}
+  .srcchip.art{background:#0E9CA5}.srcchip.tri{background:#2F6F4E}.srcchip.man{background:#9C6B1C}
+  .pill{font-size:10.5px;font-weight:700;font-family:var(--mono);border-radius:999px;padding:5px 10px;height:fit-content;white-space:nowrap}
+  .pill.risk{background:#F8E7E2;color:var(--risk)}.pill.adv{background:#FBF1E0;color:#A66A12}.pill.safe{background:#E3F1EB;color:var(--safe)}
+  .finding .ft{font-size:14px;font-weight:600;margin:1px 0 4px}
+  .finding .fd{font-size:12.5px;color:var(--ink-soft);line-height:1.5}.finding .fd .fix{color:var(--ink);font-weight:600}
+  .finding .meta2{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:6px}
 
-  /* actions */
-  .actions{display:flex;gap:12px;align-items:center;margin-top:28px}
-  .btn{font-family:var(--body);font-weight:600;font-size:14.5px;border-radius:11px;padding:12px 22px;border:1.5px solid transparent;cursor:default}
+  .actions{display:flex;gap:12px;align-items:center;margin-top:24px}
+  .btn{font-family:var(--body);font-weight:600;font-size:14.5px;border-radius:11px;padding:12px 22px;border:1.5px solid transparent}
   .btn.primary{background:var(--route);color:#fff;box-shadow:0 10px 22px -12px rgba(14,156,165,.8)}
   .btn.ghost{background:#fff;border-color:var(--line);color:var(--ink-soft)}
   .btn.link{background:none;color:var(--muted);padding:12px 6px}
   .spacer{flex:1}
+  code.m{font-family:var(--mono);font-size:.92em}
 </style>
 </head>
 <body>
 <div class="board" id="board">
 
-  <!-- ============ SCREEN 1 — Permission ============ -->
+  <!-- S1 — Permission -->
   <section class="screen" data-screen="1">
     <aside class="rail" style="--fill:6%">
-      <div class="brand">
-        <svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg>
-        <div><b>SafetyRoutes</b><small>Guided check</small></div>
-      </div>
+      <div class="brand"><svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg><div><b>SafetyRoutes</b><small>Guided check</small></div></div>
       <div class="route">
-        <div class="stop active"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission</div></div></div>
-        <div class="stop"><div class="dot"></div><div><div class="code">S2</div><div class="label">A few questions</div></div></div>
-        <div class="stop"><div class="dot"></div><div><div class="code">S3</div><div class="label">What we'll check</div></div></div>
-        <div class="stop"><div class="dot"></div><div><div class="code">S4</div><div class="label">Devices (optional)</div></div></div>
+        <div class="stop active"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission &amp; site</div></div></div>
+        <div class="stop"><div class="dot"></div><div><div class="code">S2</div><div class="label">What we'll check</div></div></div>
+        <div class="stop"><div class="dot"></div><div><div class="code">S3</div><div class="label">Server packages</div></div></div>
+        <div class="stop"><div class="dot"></div><div><div class="code">S4</div><div class="label">Other software</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S5</div><div class="label">Checking</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S6</div><div class="label">Your report</div></div></div>
       </div>
-      <div class="foot">Engine: Artemis + Nuclei · Data: MITRE&nbsp;Explorer</div>
+      <div class="foot">Artemis + Nuclei · Trivy<br>Data: MITRE&nbsp;Explorer</div>
     </aside>
     <main class="main">
-      <div class="topbar">
-        <span class="consent-chip"><span class="pulse"></span>Scan only with permission</span>
-        <span class="stepcount">Step 1 of 6</span>
-      </div>
-      <p class="eyebrow">Permission</p>
-      <h1>Let's check your website for ways in.</h1>
-      <p class="lede">SafetyRoutes looks over your organization's website from the outside — the way an attacker would — and explains what it finds in plain language. It only ever checks a site you're allowed to.</p>
-      <div class="field">
-        <label>Your website address</label>
-        <div class="input focus"><span class="pre">https://</span><input value="harbourtrust.org" readonly></div>
-      </div>
-      <label class="check"><span class="box">✓</span><span class="t"><b>I'm authorized to check this website.</b> I own it or have written permission to test it.</span></label>
-      <div class="note"><span class="ic">🛡️</span><p>We never break anything. SafetyRoutes only looks at what's already publicly reachable, runs gently, and stops there. Nothing is changed on your site.</p></div>
+      <div class="topbar"><span class="consent-chip"><span class="pulse"></span>Scan only with permission</span><span class="stepcount">Step 1 of 6</span></div>
+      <p class="eyebrow">Permission &amp; site</p>
+      <h1>Let's check your charity for ways in.</h1>
+      <p class="lede">SafetyRoutes checks three things: your <b>website</b>, the <b>packages</b> on your servers, and any <b>other software</b> you tell us about. First, where does your website live?</p>
+      <div class="field"><label>Your website address <span style="color:var(--muted);font-weight:400">— this is what we'll scan with Artemis</span></label><div class="input focus"><span class="pre">https://</span><input value="harbourtrust.org" readonly></div></div>
+      <label class="check"><span class="box">✓</span><span class="t"><b>I'm authorized to check this organization.</b> I own it or have written permission to test it.</span></label>
+      <div class="note"><span class="ic">🛡️</span><p>The website scan is <b>read-only</b> and gentle — it only looks at what's publicly reachable. The other two checks need files <i>you</i> provide; we never log into your devices.</p></div>
       <div class="grow"></div>
-      <div class="actions"><span class="spacer"></span><span class="btn primary">Start the check →</span></div>
+      <div class="actions"><span class="spacer"></span><span class="btn primary">Continue →</span></div>
     </main>
   </section>
 
-  <!-- ============ SCREEN 2 — Questions ============ -->
+  <!-- S2 — What we'll check (3 sources) -->
   <section class="screen" data-screen="2">
     <aside class="rail" style="--fill:23%">
-      <div class="brand">
-        <svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg>
-        <div><b>SafetyRoutes</b><small>Guided check</small></div>
-      </div>
+      <div class="brand"><svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg><div><b>SafetyRoutes</b><small>Guided check</small></div></div>
       <div class="route">
-        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission</div></div></div>
-        <div class="stop active"><div class="dot"></div><div><div class="code">S2</div><div class="label">A few questions</div></div></div>
-        <div class="stop"><div class="dot"></div><div><div class="code">S3</div><div class="label">What we'll check</div></div></div>
-        <div class="stop"><div class="dot"></div><div><div class="code">S4</div><div class="label">Devices (optional)</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission &amp; site</div></div></div>
+        <div class="stop active"><div class="dot"></div><div><div class="code">S2</div><div class="label">What we'll check</div></div></div>
+        <div class="stop"><div class="dot"></div><div><div class="code">S3</div><div class="label">Server packages</div></div></div>
+        <div class="stop"><div class="dot"></div><div><div class="code">S4</div><div class="label">Other software</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S5</div><div class="label">Checking</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S6</div><div class="label">Your report</div></div></div>
       </div>
-      <div class="foot">Your answers pick the checks</div>
+      <div class="foot">Three sources, one report</div>
     </aside>
     <main class="main">
       <div class="topbar"><span class="consent-chip"><span class="pulse"></span>harbourtrust.org</span><span class="stepcount">Step 2 of 6</span></div>
-      <p class="eyebrow">A few questions</p>
-      <h1>Tell us a little about your site.</h1>
-      <p class="lede">Your answers decide which checks we run — there are no wrong ones. “Not sure” is always okay; we'll detect what we can.</p>
-
-      <div class="q">
-        <div class="qt"><span class="n">1</span>What runs your website?</div>
-        <div class="chips"><span class="chip sel">WordPress</span><span class="chip">Joomla</span><span class="chip">Drupal</span><span class="chip">Wix / Squarespace</span><span class="chip">Custom-built</span><span class="chip">Not sure</span></div>
-        <div class="maps">enables → <b>webapp_identifier</b> · <b>wp_scanner</b> · <b>wordpress_plugins</b></div>
+      <p class="eyebrow">What we'll check</p>
+      <h1>Three sources of risk.</h1>
+      <p class="lede">Each uses a different tool and a different input. Turn off any you don't need.</p>
+      <div class="sources">
+        <div class="scard2 on">
+          <div class="ic">🌐</div>
+          <div><h3>Website <span class="toolb">ARTEMIS + NUCLEI</span></h3><p>The software your site runs and the known issues for it, plus exposed files and weak email settings.</p><div class="meta"><span class="inputby">input → your domain (automatic)</span><span class="conf cfm">CONFIRMED</span></div></div>
+          <div class="toggle"></div>
+        </div>
+        <div class="scard2 on">
+          <div class="ic">📦</div>
+          <div><h3>Server packages <span class="toolb">TRIVY</span></h3><p>Vulnerable operating-system and library packages on a Linux server — the things a website scan can't see.</p><div class="meta"><span class="inputby">input → upload a Trivy report</span><span class="conf cfm">CONFIRMED</span></div></div>
+          <div class="toggle"></div>
+        </div>
+        <div class="scard2 on">
+          <div class="ic">💻</div>
+          <div><h3>Other software <span class="toolb">MANUAL · MITRE EXPLORER</span></h3><p>Desktop or office software no scanner can reach — like Microsoft Office or Adobe Acrobat. You tell us; we list the known issues.</p><div class="meta"><span class="inputby">input → product + version (you type)</span><span class="conf adv">ADVISORY</span></div></div>
+          <div class="toggle"></div>
+        </div>
       </div>
-      <div class="q">
-        <div class="qt"><span class="n">2</span>Do you send email from your domain?</div>
-        <div class="chips"><span class="chip sel">Yes</span><span class="chip">No</span><span class="chip">Not sure</span></div>
-        <div class="maps">enables → <b>mail_dns_scanner</b> (SPF / DMARC)</div>
-      </div>
-      <div class="q">
-        <div class="qt"><span class="n">3</span>How big is your team?</div>
-        <div class="chips"><span class="chip">Just me</span><span class="chip sel">2–10 people</span><span class="chip">11–50 people</span></div>
-        <div class="maps">tunes → report tone &amp; how much detail we show</div>
-      </div>
-
       <div class="grow"></div>
       <div class="actions"><span class="btn ghost">← Back</span><span class="spacer"></span><span class="btn primary">Continue →</span></div>
     </main>
   </section>
 
-  <!-- ============ SCREEN 3 — What we'll check ============ -->
+  <!-- S3 — Server packages (Trivy) -->
   <section class="screen" data-screen="3">
     <aside class="rail" style="--fill:40%">
-      <div class="brand">
-        <svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg>
-        <div><b>SafetyRoutes</b><small>Guided check</small></div>
-      </div>
+      <div class="brand"><svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg><div><b>SafetyRoutes</b><small>Guided check</small></div></div>
       <div class="route">
-        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">A few questions</div></div></div>
-        <div class="stop active"><div class="dot"></div><div><div class="code">S3</div><div class="label">What we'll check</div></div></div>
-        <div class="stop"><div class="dot"></div><div><div class="code">S4</div><div class="label">Devices (optional)</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission &amp; site</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">What we'll check</div></div></div>
+        <div class="stop active"><div class="dot"></div><div><div class="code">S3</div><div class="label">Server packages</div></div></div>
+        <div class="stop"><div class="dot"></div><div><div class="code">S4</div><div class="label">Other software</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S5</div><div class="label">Checking</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S6</div><div class="label">Your report</div></div></div>
       </div>
-      <div class="foot">Intrusive checks stay off</div>
+      <div class="foot">Trivy → PURLs → MITRE&nbsp;Explorer</div>
     </aside>
     <main class="main">
       <div class="topbar"><span class="consent-chip"><span class="pulse"></span>harbourtrust.org</span><span class="stepcount">Step 3 of 6</span></div>
-      <p class="eyebrow">What we'll check</p>
-      <h1>Two kinds of checks.</h1>
-      <p class="lede">Both are read-only and safe. You can turn either off, but we recommend keeping both on.</p>
-      <div class="tracks">
-        <div class="tcard on">
-          <div class="toggle"></div>
-          <h3>Applications</h3>
-          <p>The software your site runs — like WordPress or ColdFusion — and the known problems for that exact version.</p>
-          <div class="modchips"><span class="mod">webapp_identifier</span><span class="mod">nuclei</span><span class="mod">MITRE&nbsp;Explorer</span></div>
-        </div>
-        <div class="tcard on">
-          <div class="toggle"></div>
-          <h3>Website hygiene</h3>
-          <p>Files and settings that shouldn't be public — exposed backups, <code style="font-family:var(--mono);font-size:12px">.git</code> folders, weak email protection.</p>
-          <div class="modchips"><span class="mod">vcs</span><span class="mod">directory_index</span><span class="mod">mail_dns_scanner</span></div>
-        </div>
+      <p class="eyebrow">Server packages · Trivy</p>
+      <h1>Run Trivy, then upload the report.</h1>
+      <p class="lede">On the server you want to check, run the one-line command below, then upload the file it produces. Trivy is free and open-source — no agent, no login, nothing installed permanently.</p>
+      <div class="cmd"><span class="pmt">server:~$</span> trivy fs <span class="fl">--scanners</span> vuln <span class="fl">--format</span> json <span class="fl">--output</span> sr-report.json /</div>
+      <div class="drop has">
+        <div class="fic">📄</div>
+        <div class="fmeta"><b>sr-report.json</b><div class="fs">412 KB · 1,204 packages scanned · 38 with known issues</div></div>
+        <span class="ok">✓ parsed</span>
       </div>
-      <div class="offstrip"><span class="ol">Off by default</span><span style="font-size:13px;color:var(--muted)">Password-guessing and other intrusive checks stay off unless you ask.</span><span class="mod muted">ssh_bruter</span><span class="mod muted">admin_panel_login_bruter</span></div>
+      <div class="parsed">
+        <div class="ph"><span>What we read from your report (by PURL)</span><span>installed → fixed · severity</span></div>
+        <div class="prow"><span class="purl">pkg:deb/debian/openssl</span><span class="iv">1.1.1n</span><span class="fx">→ 1.1.1n-0+deb11u5</span><span class="sev hi">HIGH</span></div>
+        <div class="prow"><span class="purl">pkg:deb/debian/curl</span><span class="iv">7.74.0-1.3</span><span class="fx">→ 7.74.0-1.3+deb11u7</span><span class="sev cr">CRIT</span></div>
+        <div class="prow"><span class="purl">pkg:pypi/django</span><span class="iv">3.2.18</span><span class="fx">→ 3.2.25</span><span class="sev me">MED</span></div>
+      </div>
       <div class="grow"></div>
-      <div class="actions"><span class="btn ghost">← Back</span><span class="spacer"></span><span class="btn primary">Continue →</span></div>
+      <div class="actions"><span class="btn ghost">← Back</span><span class="btn link">No server? Skip</span><span class="spacer"></span><span class="btn primary">Continue →</span></div>
     </main>
   </section>
 
-  <!-- ============ SCREEN 4 — Devices (optional) ============ -->
+  <!-- S4 — Other software (manual) -->
   <section class="screen" data-screen="4">
     <aside class="rail" style="--fill:57%">
-      <div class="brand">
-        <svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg>
-        <div><b>SafetyRoutes</b><small>Guided check</small></div>
-      </div>
+      <div class="brand"><svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg><div><b>SafetyRoutes</b><small>Guided check</small></div></div>
       <div class="route">
-        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">A few questions</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S3</div><div class="label">What we'll check</div></div></div>
-        <div class="stop active"><div class="dot"></div><div><div class="code">S4</div><div class="label">Devices (optional)</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission &amp; site</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">What we'll check</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S3</div><div class="label">Server packages</div></div></div>
+        <div class="stop active"><div class="dot"></div><div><div class="code">S4</div><div class="label">Other software</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S5</div><div class="label">Checking</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S6</div><div class="label">Your report</div></div></div>
       </div>
@@ -309,39 +278,31 @@
     </aside>
     <main class="main">
       <div class="topbar"><span class="consent-chip"><span class="pulse"></span>harbourtrust.org</span><span class="stepcount">Step 4 of 6</span></div>
-      <p class="eyebrow">Devices · optional</p>
+      <p class="eyebrow">Other software · manual</p>
       <h1>Software on your computers?</h1>
-      <p class="lede">A website check can't see programs installed on laptops and servers — like Office or Acrobat. If you tell us what you use, we'll list the known issues for you to check. We won't touch those devices.</p>
-      <div class="field invsearch">
-        <label>Add software you run</label>
-        <div class="input"><span class="pre">＋</span><input value="Type a product…  e.g. Microsoft Office 2024" readonly></div>
+      <p class="lede">List desktop or office software you use — we can't scan it remotely, but we'll match each one (and its version) against MITRE Explorer and flag the known issues to check.</p>
+      <div class="rows">
+        <div class="rowh"><span>Vendor</span><span>Product</span><span>Version</span><span></span></div>
+        <div class="row"><span class="vn">Microsoft</span><span>Office LTSC</span><span class="vv">2024</span><span class="x">×</span></div>
+        <div class="row"><span class="vn">Adobe</span><span>Acrobat Reader</span><span class="vv">24.002</span><span class="x">×</span></div>
+        <div class="row"><span class="vn">Red Hat</span><span>Enterprise Linux</span><span class="vv">8</span><span class="x">×</span></div>
+        <div class="row add"><span class="plus">＋ Vendor</span><span class="ph">Product…</span><span class="ph">Version…</span><span></span></div>
       </div>
-      <div class="swchips">
-        <span class="sw">Microsoft Office <span class="v">LTSC 2024</span><span class="tag">advisory</span><span class="x">×</span></span>
-        <span class="sw">Adobe Acrobat Reader <span class="v">2024</span><span class="tag">advisory</span><span class="x">×</span></span>
-        <span class="sw">Red Hat Enterprise Linux <span class="v">8</span><span class="tag">advisory</span><span class="x">×</span></span>
-      </div>
-      <div class="trivy">
-        <span class="badge">OPEN SOURCE</span>
-        <div><h4>Have a Linux server? Get a real package check.</h4><p>Run <code>trivy fs /</code> once on the server and upload the result — SafetyRoutes turns it into the same plain-language report. No agent, no login required.</p></div>
-      </div>
+      <div class="note"><span class="ic">💡</span><p>We match the <b>exact version</b> you enter, so the list stays relevant. Because we can't see the device, these are flagged <b>“Advisory — verify locally”</b>, never “Confirmed”.</p></div>
       <div class="grow"></div>
       <div class="actions"><span class="btn ghost">← Back</span><span class="btn link">Skip this step</span><span class="spacer"></span><span class="btn primary">Continue →</span></div>
     </main>
   </section>
 
-  <!-- ============ SCREEN 5 — Checking ============ -->
+  <!-- S5 — Checking -->
   <section class="screen" data-screen="5">
     <aside class="rail" style="--fill:74%">
-      <div class="brand">
-        <svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg>
-        <div><b>SafetyRoutes</b><small>Guided check</small></div>
-      </div>
+      <div class="brand"><svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg><div><b>SafetyRoutes</b><small>Guided check</small></div></div>
       <div class="route">
-        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">A few questions</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S3</div><div class="label">What we'll check</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S4</div><div class="label">Devices (optional)</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission &amp; site</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">What we'll check</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S3</div><div class="label">Server packages</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S4</div><div class="label">Other software</div></div></div>
         <div class="stop active"><div class="dot"></div><div><div class="code">S5</div><div class="label">Checking</div></div></div>
         <div class="stop"><div class="dot"></div><div><div class="code">S6</div><div class="label">Your report</div></div></div>
       </div>
@@ -350,51 +311,58 @@
     <main class="main">
       <div class="topbar"><span class="consent-chip"><span class="pulse"></span>harbourtrust.org</span><span class="stepcount">Step 5 of 6</span></div>
       <p class="eyebrow">Checking</p>
-      <h1>Checking harbourtrust.org…</h1>
-      <p class="lede">This usually takes a few minutes. You can leave — we'll email the report when it's ready.</p>
-      <div class="stages">
-        <div class="stage done"><span class="si">✓</span><div><div class="st">Finding your site and its pages</div><div class="ss">port_scanner · subdomain_enumeration — 4 hosts found</div></div></div>
-        <div class="stage done"><span class="si">✓</span><div><div class="st">Identifying the software you run</div><div class="ss">webapp_identifier — WordPress 6.1 detected on /</div></div></div>
-        <div class="stage run"><span class="si">●</span><div><div class="st">Testing for known issues</div><div class="ss">nuclei-router → nuclei-module — running high-severity templates…</div></div></div>
-        <div class="stage wait"><span class="si">4</span><div><div class="st">Cross-referencing the CVE database</div><div class="ss">MITRE Explorer — match WordPress 6.1 → known CVEs</div></div></div>
+      <h1>Putting it all together…</h1>
+      <div class="grpc">
+        <div class="grp">
+          <div class="gh"><span class="src art">WEBSITE</span><span class="tgt">harbourtrust.org</span></div>
+          <div class="stage done"><span class="si">✓</span><div><div class="st">Finding pages and services</div><div class="ss">port_scanner · subdomain_enumeration — 4 hosts</div></div></div>
+          <div class="stage done"><span class="si">✓</span><div><div class="st">Identifying the software</div><div class="ss">webapp_identifier — WordPress 6.1</div></div></div>
+          <div class="stage run"><span class="si">●</span><div><div class="st">Testing for known issues + matching CVEs</div><div class="ss">nuclei-router → nuclei-module → MITRE Explorer</div></div></div>
+        </div>
+        <div class="grp">
+          <div class="gh"><span class="src tri">SERVER PACKAGES</span><span class="tgt">sr-report.json · 38 packages</span></div>
+          <div class="stage done"><span class="si">✓</span><div><div class="st">Reading your Trivy report</div><div class="ss">38 packages with issues · by PURL</div></div></div>
+          <div class="stage run"><span class="si">●</span><div><div class="st">Enriching via MITRE Explorer /packages</div><div class="ss">severity · KEV · EPSS priority · plain-language</div></div></div>
+        </div>
+        <div class="grp">
+          <div class="gh"><span class="src man">OTHER SOFTWARE</span><span class="tgt">3 products</span></div>
+          <div class="stage done"><span class="si">✓</span><div><div class="st">Matching to MITRE Explorer Applications</div><div class="ss">version-filtered · advisory</div></div></div>
+        </div>
       </div>
-      <div class="scanfoot">🐢 Rate-limited to stay gentle on your server. Nothing is modified.</div>
       <div class="grow"></div>
       <div class="actions"><span class="spacer"></span><span class="btn ghost">Email me the report</span></div>
     </main>
   </section>
 
-  <!-- ============ SCREEN 6 — Your report ============ -->
+  <!-- S6 — Report -->
   <section class="screen" data-screen="6">
     <aside class="rail" style="--fill:100%">
-      <div class="brand">
-        <svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg>
-        <div><b>SafetyRoutes</b><small>Guided check</small></div>
-      </div>
+      <div class="brand"><svg class="mark" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#0E9CA5"/><circle cx="11" cy="23" r="3.4" fill="#16303C"/><circle cx="23" cy="11" r="3.4" fill="#fff"/><path d="M11 23 C 11 15, 23 19, 23 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/></svg><div><b>SafetyRoutes</b><small>Guided check</small></div></div>
       <div class="route">
-        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">A few questions</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S3</div><div class="label">What we'll check</div></div></div>
-        <div class="stop done"><div class="dot"></div><div><div class="code">S4</div><div class="label">Devices (optional)</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S1</div><div class="label">Permission &amp; site</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S2</div><div class="label">What we'll check</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S3</div><div class="label">Server packages</div></div></div>
+        <div class="stop done"><div class="dot"></div><div><div class="code">S4</div><div class="label">Other software</div></div></div>
         <div class="stop done"><div class="dot"></div><div><div class="code">S5</div><div class="label">Checking</div></div></div>
         <div class="stop active"><div class="dot"></div><div><div class="code">S6</div><div class="label">Your report</div></div></div>
       </div>
-      <div class="foot">Three honest states</div>
+      <div class="foot">Source-tagged · 3 honest states</div>
     </aside>
     <main class="main">
       <div class="topbar"><span class="consent-chip"><span class="pulse"></span>harbourtrust.org</span><span class="stepcount">Step 6 of 6</span></div>
       <p class="eyebrow">Your report</p>
       <h1>Here's what we found.</h1>
       <div class="summary">
-        <div class="scard risk"><span class="num">2</span><span class="lbl">Confirmed — fix these</span></div>
-        <div class="scard check"><span class="num">3</span><span class="lbl">Possible — please verify</span></div>
-        <div class="scard safe"><span class="num">11</span><span class="lbl">Checked, looking good</span></div>
+        <div class="scard risk"><span class="num">3</span><span class="lbl">Confirmed — fix these</span></div>
+        <div class="scard check"><span class="num">1</span><span class="lbl">Advisory — verify</span></div>
+        <div class="scard safe"><span class="num">14</span><span class="lbl">Checked, looking good</span></div>
       </div>
       <div class="findings">
-        <div class="finding"><span class="pill risk">CONFIRMED</span><div><div class="ft">Your hidden <code style="font-family:var(--mono)">.git</code> folder is readable by anyone.</div><div class="fd">It can leak passwords and your site's source code. <span class="fix">Fix: block public access to <code style="font-family:var(--mono)">.git</code> in your web server.</span></div><div class="src">found by vcs · seen at /.git/config</div></div></div>
-        <div class="finding"><span class="pill risk">CONFIRMED</span><div><div class="ft">WordPress 6.1 has known security holes.</div><div class="fd">Attackers actively target this version. <span class="fix">Fix: update WordPress to the latest (6.5+).</span></div><div class="src">nuclei + MITRE Explorer · CVE-2023-2745 and 4 more</div></div></div>
-        <div class="finding"><span class="pill check">POSSIBLE — CHECK</span><div><div class="ft">Microsoft Office 2024 — 92 known issues for this product.</div><div class="fd">We can't see your devices, so we couldn't confirm this. <span class="fix">Please check that Office auto-updates are on.</span></div><div class="src">advisory · MITRE Explorer (you told us you run this)</div></div></div>
-        <div class="finding"><span class="pill safe">NO ISSUE</span><div><div class="ft">Your email protection (SPF &amp; DMARC) is set up correctly.</div><div class="fd">This makes it harder for someone to send fake email as your charity. Nothing to do here.</div><div class="src">mail_dns_scanner · checked, passed</div></div></div>
+        <div class="finding"><span class="srcchip art">WEBSITE</span><span class="pill risk">CONFIRMED</span><div><div class="ft">Your hidden <code class="m">.git</code> folder is readable by anyone.</div><div class="fd">It can leak passwords and source code. <span class="fix">Fix: block public access to <code class="m">.git</code>.</span></div><div class="meta2">artemis · vcs — seen at /.git/config</div></div></div>
+        <div class="finding"><span class="srcchip tri">SERVER</span><span class="pill risk">CONFIRMED</span><div><div class="ft">OpenSSL on your server is out of date and vulnerable.</div><div class="fd">Installed <code class="m">1.1.1n</code>. <span class="fix">Fix: update to <code class="m">1.1.1n-0+deb11u5</code>.</span></div><div class="meta2">trivy → MITRE Explorer · CVE-2023-0286 · HIGH · pkg:deb/debian/openssl</div></div></div>
+        <div class="finding"><span class="srcchip art">WEBSITE</span><span class="pill risk">CONFIRMED</span><div><div class="ft">WordPress 6.1 has known security holes.</div><div class="fd">Attackers actively target this version. <span class="fix">Fix: update WordPress to 6.5+.</span></div><div class="meta2">nuclei + MITRE Explorer · CVE-2023-2745 and 4 more</div></div></div>
+        <div class="finding"><span class="srcchip man">OTHER</span><span class="pill adv">ADVISORY — CHECK</span><div><div class="ft">Microsoft Office LTSC 2024 — 92 known issues for this version.</div><div class="fd">We can't see your devices. <span class="fix">Please confirm Office auto-updates are on.</span></div><div class="meta2">MITRE Explorer Applications · version-matched · you told us you run this</div></div></div>
+        <div class="finding"><span class="srcchip art">WEBSITE</span><span class="pill safe">NO ISSUE</span><div><div class="ft">Your email protection (SPF &amp; DMARC) is set up correctly.</div><div class="fd">Harder for someone to send fake email as your charity. Nothing to do here.</div><div class="meta2">artemis · mail_dns_scanner — checked, passed</div></div></div>
       </div>
       <div class="grow"></div>
       <div class="actions"><span class="btn primary">Download the report (PDF)</span><span class="btn ghost">Share with my team</span></div>
@@ -403,14 +371,8 @@
 
 </div>
 <script>
-  // ?screen=N shows only that screen at full viewport (for clean screenshots)
   const p = new URLSearchParams(location.search).get('screen');
-  if(p){
-    document.body.classList.add('solo');
-    document.querySelectorAll('.screen').forEach(s=>{
-      s.style.display = (s.dataset.screen===p) ? 'grid' : 'none';
-    });
-  }
+  if(p){document.body.classList.add('solo');document.querySelectorAll('.screen').forEach(s=>{s.style.display=(s.dataset.screen===p)?'grid':'none';});}
 </script>
 </body>
 </html>

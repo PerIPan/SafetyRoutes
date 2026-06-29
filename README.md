@@ -18,11 +18,11 @@ weak spots and then explains what it found in **everyday language**: what the pr
 why it matters, and the simple steps to fix it. Later, it checks again to confirm the fix
 worked, and sends a gentle reminder if anything is still open.
 
-Behind the scenes it uses trusted, free security tools. **Artemis** (which has **Nuclei**
-built in) does the checking and writes the reports, and a threat-intelligence database called
-**MITRE Explorer** connects the software an organization runs to the security flaws known to
-affect it. We only ever scan organizations that have asked us to, and we do it carefully so
-nothing breaks.
+Behind the scenes it uses trusted, free security tools. **Artemis** (with **Nuclei** built in)
+checks the website, **Trivy** checks the packages on a server, and a threat-intelligence
+database called **MITRE Explorer** connects the software an organization runs to the security
+flaws known to affect it. We only ever scan organizations that have asked us to, and we do it
+carefully so nothing breaks.
 
 The goal is simple: help the organizations that protect our communities lower their risk —
 without needing to be security experts themselves.
@@ -94,10 +94,10 @@ built and maintained by [CERT Polska](https://cert.pl/) (CERT PL).
 ## Guided wizard
 
 Most LCOs don't know which security checks they need. The **wizard** is a thin guidance
-layer on top of Artemis: a few simple questions about the organization determine **which
-Artemis modules run**, and the results are explained back in plain language. For the
-bootcamp we deliberately keep it to **two tracks** — so it's simple and presentable within
-a few days:
+layer that collects up to **three inputs** and turns them into one plain-language report:
+the **website** (Artemis scans the domain — tracks 1–2 below), **server packages** (a Trivy
+report you upload — track 3), and **other software** (you type product + version — track 4).
+Each maps to a different tool and a different confidence level:
 
 ### 1. Applications & their CVEs
 
@@ -122,87 +122,109 @@ a few days:
 - Exposed files and misconfigurations: `vcs` (exposed `.git`), `bruter` (stray backups),
   `robots`, `directory_index`, and `subdomain_enumeration`.
 
-That is the full scope for the bootcamp — **applications (cross-referenced to CVEs)** and
-**web scanning**. Every other Artemis module stays off by default; more tracks can be added
-to the wizard later.
+### 3. Server packages (Trivy)
+
+For installed OS and library packages on a Linux server — which a remote scan **can't see** —
+the org runs **Trivy** and uploads the report:
+
+```
+trivy fs --scanners vuln --format json --output sr-report.json /
+```
+
+We read each finding by **PURL** (e.g. `pkg:deb/debian/openssl`) with its installed version,
+fixed version, and CVE, then enrich via mitre-explorer's **`/packages`** knowledgebase
+(severity, KEV/EPSS, ATT&CK technique, plain language). Trivy already does the version
+verdict, so these are **Confirmed**. Trivy and mitre-explorer share the same ecosystems
+(npm, PyPI, Go, Maven, RubyGems, NuGet, Composer; Debian/Ubuntu/Alpine/RHEL via OSV).
+
+### 4. Other software (manual / advisory)
+
+For desktop or office software no scanner can reach (Office, Acrobat, …), the org
+self-declares **product + version**. We match it in mitre-explorer's Applications data and
+list the known CVEs as **Advisory — verify locally** — never *Confirmed*, since nothing was
+actively scanned.
+
+Three inputs, one report — **Website** (Artemis + Nuclei), **Server packages** (Trivy), and
+**Other software** (manual). Intrusive Artemis modules stay off by default.
 
 ## How it works — step by step
 
-The **wizard runs first** and decides what gets scanned; the actual scanning (including
-Nuclei) only runs afterwards, using the wizard's choices.
+The wizard collects up to **three inputs** first; the tools run afterwards, then everything
+merges into one **source-tagged** report.
 
 ```mermaid
 flowchart TD
-    A(["Org opts in — consent recorded"]) --> B["1. Wizard — a few simple questions"]
-    B --> C["2. Fingerprint the site<br/>Artemis: webapp_identifier, port_scanner, CMS version checks"]
-    C --> D["3. Wizard picks Artemis modules<br/>from the answers + fingerprint"]
-    D --> E["4a. Applications track<br/>scan apps, then Nuclei (router picks templates, runner runs them)"]
-    D --> F["4b. Web track<br/>vcs, bruter, robots, directory_index, subdomain_enum"]
-    E --> G["5. Look up app CVEs in mitre-explorer<br/>then match the detected version on our side"]
-    F --> H["6. Collect all findings"]
-    G --> H
-    H --> I["7. Plain-language report<br/>Confirmed / Possible – needs check / No issue found"]
-    I --> J(["8. (stretch) Re-scan to confirm fixes + reminders"])
+    A(["Org opts in — consent recorded"]) --> B["Wizard: choose sources + provide inputs"]
+    B --> W["Website — your domain (automatic)"]
+    B --> P["Server packages — upload a Trivy report"]
+    B --> O["Other software — type product + version"]
+    W --> W2["Artemis + Nuclei: fingerprint apps, test known issues, check hygiene"]
+    P --> P2["Read Trivy by PURL: installed + fixed version + CVE"]
+    O --> O2["Match product + version in MITRE Explorer Applications"]
+    W2 --> X["Enrich + prioritize in MITRE Explorer<br/>CVEs, KEV/EPSS, plain language"]
+    P2 --> X
+    O2 --> X
+    X --> R["One report, source-tagged<br/>Confirmed (Website, Server) · Advisory (Other) · No issue"]
 ```
 
 1. **Opt in** — the organization gives permission; we record consent.
-2. **Wizard questions** — a few plain questions about the org and its website.
-3. **Fingerprint** — Artemis detects what software (and version) the site runs.
-4. **Pick modules** — the wizard turns answers + fingerprint into the module set
-   (Applications + Web only, for the bootcamp).
-5. **Scan** — Artemis runs the chosen modules. The **Applications** track uses Nuclei (its
-   `nuclei-router` picks the templates that fit, then `nuclei-module` runs them); the
-   **Web** track checks for exposed files and misconfigurations.
-6. **Cross-reference CVEs** — look up the app's known CVEs in mitre-explorer, then keep the
-   ones affecting the detected version (matched on our side).
-7. **Reconcile** — every relevant CVE is marked **Confirmed**, **Possible — needs manual
-   check**, or **No issue found**.
-8. **Report** — results are written up in plain language. *(Stretch: re-scan later to
-   confirm fixes and send reminders.)*
+2. **Choose sources + give inputs** — a domain, a Trivy report, and/or a product+version list.
+3. **Website** → Artemis fingerprints the apps and runs Nuclei (`nuclei-router` → `nuclei-module`),
+   plus hygiene checks (`vcs`, `directory_index`, `mail_dns_scanner`).
+4. **Server packages** → we read the uploaded Trivy report by **PURL** (installed + fixed
+   version + CVE).
+5. **Other software** → we match each declared product + version in MITRE Explorer.
+6. **Enrich** → MITRE Explorer adds CVE detail, KEV/EPSS priority, and plain-language context.
+7. **Report** → one source-tagged report: **Confirmed** (Website, Server) · **Advisory** (Other,
+   verify locally) · **No issue found**.
 
 ## Wizard mockup (for team alignment)
 
-A non-functional, clickable-looking prototype to align the team on the flow and the tone —
-**not built code yet**. Source: [`mock/wizard.html`](mock/wizard.html) (open it in a browser,
-or append `?screen=1`…`6` to view one screen). Six steps:
+A non-functional, clickable-looking prototype to align the team on the flow, the **three
+real inputs**, and the tone — **not built code yet**. Source:
+[`mock/wizard.html`](mock/wizard.html) (open in a browser, or append `?screen=1`…`6`). The
+inputs mirror what each tool actually needs.
 
-**1 · Permission** — consent first; scan only a site you're authorized to test.
+**1 · Permission & site** — consent first; the website address is the real **Artemis** target.
 
 ![Permission step](docs/screenshots/sr-1-permission.png)
 
-**2 · A few questions** — plain questions for a non-technical user; each answer maps to the
-Artemis modules it enables (shown in mono, for *our* reference).
+**2 · What we'll check** — the **three sources**, each with its tool, its input method, and
+its confidence: **Website** (Artemis + Nuclei, automatic, *Confirmed*) · **Server packages**
+(Trivy upload, *Confirmed*) · **Other software** (manual, *Advisory*).
 
-![Questions step](docs/screenshots/sr-2-questions.png)
+![Three sources step](docs/screenshots/sr-2-sources.png)
 
-**3 · What we'll check** — the two tracks (Applications + Website hygiene). Intrusive
-modules (`ssh_bruter`, `admin_panel_login_bruter`, …) are explicitly **off by default**.
+**3 · Server packages (Trivy)** — the real command (`trivy fs --scanners vuln --format json
+--output sr-report.json /`), the uploaded report, and a preview of what we read **by PURL**
+(installed → fixed version + severity).
 
-![Checks step](docs/screenshots/sr-3-checks.png)
+![Server packages step](docs/screenshots/sr-3-packages.png)
 
-**4 · Devices (optional)** — self-declare installed software (Office / Acrobat / RHEL) for
-**advisory-only** CVE lookup, since a remote scan can't see it. Optional **Trivy** path for
-a real package check on a Linux server.
+**4 · Other software (manual)** — structured **vendor / product / version** entry (Office,
+Acrobat, RHEL). Matched in MITRE Explorer by exact version; flagged **Advisory — verify
+locally**, never *Confirmed*.
 
-![Devices step](docs/screenshots/sr-4-devices.png)
+![Other software step](docs/screenshots/sr-4-other.png)
 
-**5 · Checking** — progress mapped to the real pipeline: discovery → fingerprint →
-`nuclei-router`/`nuclei-module` → cross-reference MITRE Explorer. Gentle, rate-limited,
-read-only.
+**5 · Checking** — progress grouped by source: Website (`nuclei-router`/`nuclei-module` →
+MITRE Explorer), Server packages (Trivy report → MITRE Explorer `/packages`), Other software
+(version-matched). Gentle, rate-limited, read-only.
 
 ![Checking step](docs/screenshots/sr-5-checking.png)
 
-**6 · Your report** — the honest **three-state** model: **Confirmed** (actively verified) ·
-**Possible — needs check** (known for the app/version, not confirmable remotely — e.g. the
-Office advisory) · **No issue found**. Plain language, plain-English severity, a clear fix.
+**6 · Your report** — one **source-tagged** report with the honest confidence model:
+**Confirmed** (Website / Server) · **Advisory — verify** (Other) · **No issue found**. Plain
+language, plain-English severity, a clear fix.
 
 ![Report step](docs/screenshots/sr-6-report.png)
 
 ## CVE data — the mitre-explorer API
 
-The Applications track pulls each detected app's known CVEs from
-[**mitre-explorer.org**](https://mitre-explorer.org) (11K+ products → 26K+ CVEs, enriched
-with CISA KEV and EPSS). Base URL: `https://mitre-explorer.org`.
+mitre-explorer is the knowledge layer for **both** the Applications tier (web-facing apps +
+declared software → CVEs) **and** the Packages tier (Trivy findings → advisories). 11K+
+products → 26K+ CVEs, plus ~12.8K packages → 32.5K GHSA + 489K OSV advisories, enriched with
+CISA KEV and EPSS. Base URL: `https://mitre-explorer.org`.
 
 **Lookup flow (three calls):**
 
@@ -223,6 +245,9 @@ with CISA KEV and EPSS). Base URL: `https://mitre-explorer.org`.
 | `GET /api/v1/applications/{vendor}/{product}` | An app + its CVEs | path slug `^[a-z0-9/]+$`, `version`\*, `page`, `limit` | Coarse\* |
 | `GET /api/v1/cves` | CVE list, filter by app name | `app` (substring), `version`\*, `severity`, `since`, `technique` | Coarse\* (needs `app`) |
 | `GET /api/v1/cves/{cveId}` | Full CVE incl. version ranges | path `CVE-YYYY-NNNN`, `version`\* | Returns ranges; `version`\* narrows |
+| `GET /api/v1/packages` | Search packages (Trivy tier) | `ecosystem`, `q`, `page`, `limit` | — |
+| `GET /api/v1/packages/{ecosystem}/{name}` | A package + its advisories (GHSA + OSV) | path `ecosystem`/`name`, `version`\* | GHSA returns `vulnerableRange`/`fixedVersion`; `version`\* narrows |
+| `GET /api/v1/cves/{cveId}/packages` | Packages affected by a CVE | path `CVE-YYYY-NNNN` | — |
 | `POST /api/a2a` | JSON-RPC skills: `get_application_security`, `search_applications`, `search_cves`, `get_cve_detail` | per skill (+ `version`\*) | Coarse\* |
 
 \* `version` is an optional, non-breaking param — a coarse **substring** match on the stored
@@ -242,6 +267,13 @@ Pending deploy of mitre-explorer.
   (can take days), so very recent CVEs may not map to an app yet.
 - The A2A endpoint is **rate-limited (~50 requests/day/IP, no auth)** — fine for a demo,
   not for bulk lookups.
+
+**Packages lookup (Trivy tier):** join Trivy findings by **PURL** or `(ecosystem,
+package_name)`. The KB spans Trivy's ecosystems (npm, PyPI, Go, Maven, RubyGems, NuGet,
+Composer; Debian/Ubuntu/Alpine/RHEL via OSV). **GHSA** (language) packages return
+`vulnerableRange` + `fixedVersion`; **OSV** (OS-distro) packages do **not** surface ranges
+here — which is fine, because **Trivy already produces the installed/fixed-version verdict**;
+mitre-explorer enriches by ID (severity, KEV/EPSS, ATT&CK technique, plain language).
 
 ## Proposed approach
 
