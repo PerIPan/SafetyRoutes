@@ -18,10 +18,11 @@ weak spots and then explains what it found in **everyday language**: what the pr
 why it matters, and the simple steps to fix it. Later, it checks again to confirm the fix
 worked, and sends a gentle reminder if anything is still open.
 
-Behind the scenes it uses two trusted, free security tools — **Artemis** does the thorough
-checking and writes the reports, and **Nuclei** works out what software a site runs so the
-check-up is tailored and the results are easier to explain. We only ever scan organizations
-that have asked us to, and we do it carefully so nothing breaks.
+Behind the scenes it uses trusted, free security tools. **Artemis** (which has **Nuclei**
+built in) does the checking and writes the reports, and a threat-intelligence database called
+**MITRE Explorer** connects the software an organization runs to the security flaws known to
+affect it. We only ever scan organizations that have asked us to, and we do it carefully so
+nothing breaks.
 
 The goal is simple: help the organizations that protect our communities lower their risk —
 without needing to be security experts themselves.
@@ -77,6 +78,10 @@ built and maintained by [CERT Polska](https://cert.pl/) (CERT PL).
   and other web security issues), with a web UI for managing and viewing scans.
 - **Extensible:** a modular architecture allows custom modules, which is how we intend
   to extend it for SafetyRoutes' use cases.
+- **Built-in CVE checks & fingerprinting:** Artemis bundles
+  [**Nuclei**](https://github.com/projectdiscovery/nuclei) (`nuclei-module`) to run
+  template-based checks for known CVEs, and fingerprints the software a site runs — so we
+  rely on **one** engine rather than running a second scanner.
 - **Deployment:** runs via Docker and Docker Compose (development mode via
   `./scripts/start --mode=development`).
 - **License:** BSD-3-Clause.
@@ -84,26 +89,39 @@ built and maintained by [CERT Polska](https://cert.pl/) (CERT PL).
 > **Note:** Artemis is experimental software under active development — use at your own
 > risk, and only against systems you are authorized to scan.
 
-## Profiling & guidance: Nuclei
+## Guided wizard
 
-Alongside Artemis, SafetyRoutes plans to use
-[**Nuclei**](https://github.com/projectdiscovery/nuclei) by ProjectDiscovery as a
-**profiling and guidance layer** — effectively a "wizard" that helps Local Community
-Organizations (LCOs) run the right scans and make sense of the results.
+Most LCOs don't know which security checks they need. The **wizard** is a thin guidance
+layer on top of Artemis: a few simple questions about the organization determine **which
+Artemis modules run**, and the results are explained back in plain language. For the
+bootcamp we deliberately keep it to **two tracks** — so it's simple and presentable within
+a few days:
 
-- **What it is:** a fast, template-based vulnerability scanner driven by
-  community-contributed YAML templates (CVEs, misconfigurations, exposed files, weak
-  credentials, subdomain takeovers, injections) across HTTP, DNS, TCP, SSL and more.
-  License: MIT.
-- **Profiling:** built-in technology fingerprinting (Wappalyzer-based) detects what
-  software an organization actually runs, so checks are matched to its real stack
-  instead of scanning blindly.
-- **Role in SafetyRoutes:** profile an LCO up front, then walk them through a tailored,
-  low-impact scan — pairing each finding with plain-language context so non-technical
-  users understand what the scanners report and what to do next.
-- **Complement, not replacement:** Artemis remains the primary scanning and reporting
-  engine; Nuclei adds targeted, template-driven checks plus the profiling that powers
-  the guidance "wizard."
+### 1. Applications & their CVEs
+
+- Artemis **fingerprints the software** a site runs, and its **version where possible** —
+  `webapp_identifier`, `port_scanner`, and CMS version checks (WordPress / Drupal / Joomla).
+- Each detected app + version is matched against
+  [**mitre-explorer.org**](https://mitre-explorer.org), which links 11K+ products to their
+  known CVEs (prioritized with CISA KEV and EPSS exploit-probability data). Only CVEs
+  affecting the **detected version** are considered — not the app's entire history. If a
+  version can't be determined, the report says so rather than guessing.
+- Artemis runs **Nuclei CVE templates** (`nuclei-module`) to actively test the
+  high-priority ones.
+- Each relevant CVE is reported in one of three clear states:
+  - **Confirmed** — the scan actively verified it.
+  - **Possible — needs manual check** — known to affect the detected app/version but not
+    safely testable remotely. (*Not* a clean bill of health.)
+  - **No issue found** — checked and nothing detected.
+
+### 2. Web scanning
+
+- Exposed files and misconfigurations: `vcs` (exposed `.git`), `bruter` (stray backups),
+  `robots`, `directory_index`, and `subdomain_enumeration`.
+
+That is the full scope for the bootcamp — **applications (cross-referenced to CVEs)** and
+**web scanning**. Every other Artemis module stays off by default; more tracks can be added
+to the wizard later.
 
 ## Proposed approach
 
@@ -148,15 +166,16 @@ organizations at scale. The four proposals below map to the challenge goals.
 - **Automated reminders/nudges** for findings that stay open.
 - **Track exposure over time** to show progress — directly serving "Decreasing Exposure."
 
-## Planned features
+## Roadmap (bootcamp)
 
-- [ ] Stand up Artemis via Docker Compose as the scanning engine
-- [ ] Define scan targets (e.g. dependencies, source code, web endpoints, infrastructure)
-- [ ] Automate Artemis scans (orchestration, scheduling, target intake)
-- [ ] Custom Artemis modules for SafetyRoutes-specific checks
-- [ ] Findings storage and severity prioritization
-- [ ] Reporting (CLI + exportable formats)
-- [ ] CI/CD integration
+Scoped to be presentable within a few days — Applications + Web tracks only.
+
+- [ ] Stand up Artemis via Docker Compose
+- [ ] Run a test scan on **one consented site**; inspect the real fingerprint/version output
+- [ ] Wizard: a few questions → enable the **Applications + Web** Artemis modules
+- [ ] Join detected app + version to **mitre-explorer** CVE data (version-filtered)
+- [ ] Plain-language report with the three CVE states + simple remediation steps
+- [ ] _(stretch)_ Re-scan to confirm fixes and send reminders
 
 ## Getting started
 
