@@ -62,6 +62,49 @@ built and maintained by [CERT Polska](https://cert.pl/) (CERT PL).
 > **Note:** Artemis is experimental software under active development — use at your own
 > risk, and only against systems you are authorized to scan.
 
+## Proposed approach
+
+> _Draft proposal for the bootcamp challenge — open to revision._
+
+The challenge is dual-natured: build a **basic, automated** scanning pipeline for
+low-capacity organizations (SMEs, non-profits), **and** run it **responsibly** while
+communicating results to **non-technical** audiences. Success is not "most findings" —
+it is *decreasing exposure at scale, ethically, with remediation that actually happens*.
+Artemis fits because CERT PL built it for exactly this: scan → auto-report → notify
+organizations at scale. The four proposals below map to the challenge goals.
+
+### 1. Artemis scanning pipeline (the technical core)
+
+- Run **Artemis via Docker Compose** as the scanning engine.
+- Define an **"LCO module profile"** — enable only safe, relevant, low-impact modules
+  (e.g. exposed `.git`/backups, outdated CMS, open admin panels, missing security
+  headers, exposed services); disable aggressive or brute-force modules.
+- **Consented target intake**: domains come from an allowlist (config/CSV) only after
+  ownership/permission is recorded.
+- **Orchestration**: scheduled scans with throttling/rate limits to minimize impact.
+
+### 2. Responsible-scanning safeguards (good-faith research)
+
+- **Authorization gate**: scan only domains with recorded consent.
+- **Low-impact guardrails**: passive/non-intrusive checks, no exploitation, no DoS,
+  rate limiting, defined scan windows, a published abuse/contact point.
+- **Scope control**: allowlist + out-of-scope blocklist; honor `security.txt` where present.
+- **Audit trail**: log what was scanned, when, and with which modules.
+
+### 3. Plain-language reporting (non-technical audiences)
+
+- Translate Artemis findings into a **tiered report**: business-impact summary →
+  prioritized "what to do" action list → optional technical appendix.
+- Express severity in **plain language** ("anyone on the internet can read your internal
+  files") rather than CVSS jargon.
+- Per-finding remediation steps sized to an LCO's capacity.
+
+### 4. Remediation confirmation & reminders (lasting impact)
+
+- **Re-scan** to verify a finding is fixed, then mark it resolved.
+- **Automated reminders/nudges** for findings that stay open.
+- **Track exposure over time** to show progress — directly serving "Decreasing Exposure."
+
 ## Planned features
 
 - [ ] Stand up Artemis via Docker Compose as the scanning engine
