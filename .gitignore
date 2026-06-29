@@ -50,3 +50,6 @@ Thumbs.db
 scan-results/
 reports/
 *.sarif
+
+# Browser automation scratch
+.playwright-mcp/

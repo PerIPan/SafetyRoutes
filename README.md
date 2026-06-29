@@ -160,6 +160,44 @@ flowchart TD
 8. **Report** — results are written up in plain language. *(Stretch: re-scan later to
    confirm fixes and send reminders.)*
 
+## Wizard mockup (for team alignment)
+
+A non-functional, clickable-looking prototype to align the team on the flow and the tone —
+**not built code yet**. Source: [`mock/wizard.html`](mock/wizard.html) (open it in a browser,
+or append `?screen=1`…`6` to view one screen). Six steps:
+
+**1 · Permission** — consent first; scan only a site you're authorized to test.
+
+![Permission step](docs/screenshots/sr-1-permission.png)
+
+**2 · A few questions** — plain questions for a non-technical user; each answer maps to the
+Artemis modules it enables (shown in mono, for *our* reference).
+
+![Questions step](docs/screenshots/sr-2-questions.png)
+
+**3 · What we'll check** — the two tracks (Applications + Website hygiene). Intrusive
+modules (`ssh_bruter`, `admin_panel_login_bruter`, …) are explicitly **off by default**.
+
+![Checks step](docs/screenshots/sr-3-checks.png)
+
+**4 · Devices (optional)** — self-declare installed software (Office / Acrobat / RHEL) for
+**advisory-only** CVE lookup, since a remote scan can't see it. Optional **Trivy** path for
+a real package check on a Linux server.
+
+![Devices step](docs/screenshots/sr-4-devices.png)
+
+**5 · Checking** — progress mapped to the real pipeline: discovery → fingerprint →
+`nuclei-router`/`nuclei-module` → cross-reference MITRE Explorer. Gentle, rate-limited,
+read-only.
+
+![Checking step](docs/screenshots/sr-5-checking.png)
+
+**6 · Your report** — the honest **three-state** model: **Confirmed** (actively verified) ·
+**Possible — needs check** (known for the app/version, not confirmable remotely — e.g. the
+Office advisory) · **No issue found**. Plain language, plain-English severity, a clear fix.
+
+![Report step](docs/screenshots/sr-6-report.png)
+
 ## CVE data — the mitre-explorer API
 
 The Applications track pulls each detected app's known CVEs from
