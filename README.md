@@ -133,16 +133,16 @@ Nuclei) only runs afterwards, using the wizard's choices.
 
 ```mermaid
 flowchart TD
-    A([Org opts in — consent recorded]) --> B[1. Wizard: a few simple questions]
-    B --> C[2. Fingerprint the site<br/>Artemis: webapp_identifier, port_scanner, CMS version checks]
-    C --> D[3. Wizard picks Artemis modules<br/>from the answers + fingerprint]
-    D --> E[4a. Applications track<br/>scan apps + Nuclei: router picks templates, runner runs them]
-    D --> F[4b. Web track<br/>vcs · bruter · robots · directory_index · subdomain_enum]
-    E --> G[5. Look up app CVEs in mitre-explorer<br/>then match the detected version on our side]
-    F --> H[6. Collect all findings]
+    A(["Org opts in — consent recorded"]) --> B["1. Wizard — a few simple questions"]
+    B --> C["2. Fingerprint the site<br/>Artemis: webapp_identifier, port_scanner, CMS version checks"]
+    C --> D["3. Wizard picks Artemis modules<br/>from the answers + fingerprint"]
+    D --> E["4a. Applications track<br/>scan apps, then Nuclei (router picks templates, runner runs them)"]
+    D --> F["4b. Web track<br/>vcs, bruter, robots, directory_index, subdomain_enum"]
+    E --> G["5. Look up app CVEs in mitre-explorer<br/>then match the detected version on our side"]
+    F --> H["6. Collect all findings"]
     G --> H
-    H --> I[7. Plain-language report<br/>Confirmed · Possible–check · No issue found]
-    I --> J([8. stretch: re-scan to confirm fixes + reminders])
+    H --> I["7. Plain-language report<br/>Confirmed / Possible – needs check / No issue found"]
+    I --> J(["8. (stretch) Re-scan to confirm fixes + reminders"])
 ```
 
 1. **Opt in** — the organization gives permission; we record consent.
@@ -159,6 +159,44 @@ flowchart TD
    check**, or **No issue found**.
 8. **Report** — results are written up in plain language. *(Stretch: re-scan later to
    confirm fixes and send reminders.)*
+
+## CVE data — the mitre-explorer API
+
+The Applications track pulls each detected app's known CVEs from
+[**mitre-explorer.org**](https://mitre-explorer.org) (11K+ products → 26K+ CVEs, enriched
+with CISA KEV and EPSS). Base URL: `https://mitre-explorer.org`.
+
+**Lookup flow (three calls):**
+
+1. **Resolve product → slug** — `GET /api/v1/applications?search={name}` returns matches
+   with a `normalized` slug (e.g. `apache/http_server`), `vendor`, and `product`. The
+   detail call needs this exact slug.
+2. **Get the app's CVEs** — `GET /api/v1/applications/{vendor}/{product}` returns the app
+   plus a paginated `cves[]` array (`cveId`, `cvssSeverity`, `isKev`, `publishedAt`, …).
+3. **Get version ranges per CVE** — `GET /api/v1/cves/{cveId}` returns
+   `affectedApps[].versionStart` / `versionEnd`. **Match the detected version here, on our
+   side** — there is no server-side version filter.
+
+**Endpoints:**
+
+| Endpoint | Purpose | Key params | Version filter? |
+|---|---|---|---|
+| `GET /api/v1/applications` | Search apps / resolve slug | `search`, `vendor`, `page`, `limit`, `sort` | No |
+| `GET /api/v1/applications/{vendor}/{product}` | An app + its CVEs | path slug `^[a-z0-9/]+$`, `page`, `limit` | No |
+| `GET /api/v1/cves` | CVE list, filter by app name | `app` (substring), `severity`, `since`, `technique`, `page` | No |
+| `GET /api/v1/cves/{cveId}` | Full CVE incl. version ranges | path `CVE-YYYY-NNNN` | Returns `versionStart`/`versionEnd` |
+| `POST /api/a2a` | JSON-RPC skills: `get_application_security`, `search_applications`, `search_cves`, `get_cve_detail` | per skill | No |
+
+**Gotchas (verified against the mitre-explorer source):**
+
+- **No version or CPE filter** on any endpoint — narrow to the detected version client-side
+  using each CVE's `versionStart`/`versionEnd`.
+- The `?app=` filter is a substring (ILIKE) match and **over-matches** (e.g. `http` hits
+  many products) — prefer the slug route for accuracy.
+- Newly-published CVEs may show an empty `affectedApps` until NVD CPE enrichment lands
+  (can take days), so very recent CVEs may not map to an app yet.
+- The A2A endpoint is **rate-limited (~50 requests/day/IP, no auth)** — fine for a demo,
+  not for bulk lookups.
 
 ## Proposed approach
 
