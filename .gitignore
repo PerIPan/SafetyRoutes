@@ -53,3 +53,6 @@ reports/
 
 # Browser automation scratch
 .playwright-mcp/
+
+# local working screenshots
+sr-app-*.png

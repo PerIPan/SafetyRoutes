@@ -1,65 +1,53 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Brand } from "@/components/ui";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto max-w-3xl px-6 py-14">
+      <Brand />
+      <p className="mt-12 font-mono text-[12px] uppercase tracking-[0.14em] text-route-deep">
+        A guided security check for community organizations
+      </p>
+      <h1 className="mt-3 max-w-[18ch] font-display text-[42px] font-semibold leading-[1.05] tracking-tight text-ink">
+        A friendly health check-up for your organization.
+      </h1>
+      <p className="mt-5 max-w-[58ch] text-[16px] leading-relaxed text-ink-soft">
+        SafetyRoutes checks three things and explains what it finds in plain language: your{" "}
+        <b>website</b>, the <b>packages</b> on your servers, and any <b>other software</b> you
+        tell us about. We only ever check organizations that have asked us to.
+      </p>
+
+      <div className="mt-8 flex flex-wrap items-center gap-3">
+        <Link
+          href="/new"
+          className="rounded-xl bg-route px-6 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_22px_-12px_rgba(14,156,165,0.8)]"
+        >
+          Start a check →
+        </Link>
+        <Link
+          href="/demo"
+          className="rounded-xl border border-line bg-surface px-6 py-3.5 text-[15px] font-semibold text-ink-soft"
+        >
+          See a sample report
+        </Link>
+      </div>
+
+      <div className="mt-14 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {(
+          [
+            ["🌐", "Website", "Artemis + Nuclei scan your domain — apps, exposed files, email hygiene.", "Confirmed"],
+            ["📦", "Server packages", "Upload a Trivy report — vulnerable OS & library packages.", "Confirmed"],
+            ["💻", "Other software", "Tell us product + version — we list the known issues to check.", "Advisory"],
+          ] as const
+        ).map(([icon, title, body, conf]) => (
+          <div key={title} className="rounded-2xl border border-line bg-surface p-5">
+            <div className="text-2xl">{icon}</div>
+            <div className="mt-2 font-display text-[17px] font-semibold text-ink">{title}</div>
+            <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">{body}</p>
+            <div className="mt-2 font-mono text-[11px] text-route-deep">{conf}</div>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }

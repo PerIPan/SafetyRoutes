@@ -35,9 +35,12 @@ function mapSeverity(s: unknown): FindingSeverity | null {
   }
 }
 
-/** Returns false if the object isn't recognizably a Trivy report (so callers can 400). */
+/** Returns false if the object isn't recognizably a Trivy report (so callers can 400).
+ *  Accepts an empty report (Results null/absent but SchemaVersion present) → 0 findings. */
 export function looksLikeTrivy(json: unknown): json is { Results?: unknown[] } {
-  return !!json && typeof json === 'object' && Array.isArray((json as { Results?: unknown }).Results);
+  if (!json || typeof json !== 'object') return false;
+  const o = json as { Results?: unknown; SchemaVersion?: unknown };
+  return Array.isArray(o.Results) || o.Results === null || typeof o.SchemaVersion === 'number';
 }
 
 export function parseTrivyReport(json: unknown): TrivyParseResult {
