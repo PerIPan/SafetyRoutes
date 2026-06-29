@@ -62,6 +62,27 @@ built and maintained by [CERT Polska](https://cert.pl/) (CERT PL).
 > **Note:** Artemis is experimental software under active development — use at your own
 > risk, and only against systems you are authorized to scan.
 
+## Profiling & guidance: Nuclei
+
+Alongside Artemis, SafetyRoutes plans to use
+[**Nuclei**](https://github.com/projectdiscovery/nuclei) by ProjectDiscovery as a
+**profiling and guidance layer** — effectively a "wizard" that helps Local Community
+Organizations (LCOs) run the right scans and make sense of the results.
+
+- **What it is:** a fast, template-based vulnerability scanner driven by
+  community-contributed YAML templates (CVEs, misconfigurations, exposed files, weak
+  credentials, subdomain takeovers, injections) across HTTP, DNS, TCP, SSL and more.
+  License: MIT.
+- **Profiling:** built-in technology fingerprinting (Wappalyzer-based) detects what
+  software an organization actually runs, so checks are matched to its real stack
+  instead of scanning blindly.
+- **Role in SafetyRoutes:** profile an LCO up front, then walk them through a tailored,
+  low-impact scan — pairing each finding with plain-language context so non-technical
+  users understand what the scanners report and what to do next.
+- **Complement, not replacement:** Artemis remains the primary scanning and reporting
+  engine; Nuclei adds targeted, template-driven checks plus the profiling that powers
+  the guidance "wizard."
+
 ## Proposed approach
 
 > _Draft proposal for the bootcamp challenge — open to revision._
