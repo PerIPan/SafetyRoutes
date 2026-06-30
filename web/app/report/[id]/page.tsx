@@ -6,6 +6,7 @@ import { buildReport } from "@/lib/report";
 import { Brand } from "@/components/ui";
 import { ScanLive } from "@/components/scan-live";
 import { FindingsView } from "@/components/findings-view";
+import { ReportActions } from "@/components/report-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -67,14 +68,7 @@ export default async function ReportPage({
         <FindingsView findings={findings} />
       )}
 
-      <div className="mt-8 flex gap-3">
-        <Link
-          href="/new"
-          className="rounded-xl bg-route px-5 py-3 text-[14.5px] font-semibold text-white"
-        >
-          Run another check
-        </Link>
-      </div>
+      <ReportActions scanId={id} initial={scan.sourceStatus} />
     </main>
   );
 }

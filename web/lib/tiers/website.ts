@@ -17,6 +17,18 @@ function digSeverity(result: unknown): FindingSeverity | null {
   return null;
 }
 
+/** Pull a CVE id out of an Artemis/Nuclei result so the finding can be enriched
+ *  (scoring + ATT&CK techniques) and linked. Nuclei carries it in info.classification or the
+ *  template id; a JSON scan is the most robust across the varying shapes. */
+function digCve(result: unknown): string | null {
+  try {
+    const m = JSON.stringify(result ?? '').match(/CVE-\d{4}-\d{3,7}/i);
+    return m ? m[0].toUpperCase() : null;
+  } catch {
+    return null;
+  }
+}
+
 function mapResult(scanId: string, r: ArtemisTaskResult): Finding | null {
   const title = r.statusReason?.trim() || (r.receiver ? `${r.receiver} finding` : null);
   if (!title) return null;
@@ -30,6 +42,7 @@ function mapResult(scanId: string, r: ArtemisTaskResult): Finding | null {
     severity,
     severityPlain: plainSeverity(severity),
     fixText: null,
+    cveId: digCve(r.result),
     module: r.receiver,
     artemisFindingId: r.target ? `${r.receiver}:${r.target}` : r.receiver,
     enrichmentStatus: 'done',

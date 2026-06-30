@@ -69,11 +69,19 @@ export interface MitreAppResult {
   product: string;
   cves: MitreAppCve[];
 }
+export interface MitreTechnique {
+  attackId: string;
+  name: string;
+  tactics?: string[];
+}
 export interface MitreCveDetail {
   cveId: string;
+  description?: string | null;
+  cvssScore?: number | null;
   cvssSeverity: string | null;
   isKev?: boolean;
-  description?: string | null;
+  epssScore?: number | null;
+  techniques?: MitreTechnique[];
   affectedApps: { normalized: string; versionStart: string | null; versionEnd: string | null }[];
 }
 
