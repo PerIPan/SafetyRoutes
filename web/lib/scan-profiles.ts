@@ -65,41 +65,14 @@ export function isScanProfile(v: unknown): v is ScanProfileKey {
   return v === 'essentials' || v === 'standard' || v === 'thorough';
 }
 
-// --- Nuclei depth tuning ------------------------------------------------------
-// nuclei runtime is dominated by template count × target latency. We tie the nuclei severity
-// threshold (an Artemis per-scan runtime config) and the website-tier wait window to depth so a
-// quick "Essentials" finishes in minutes while "Thorough" trades time for coverage.
-//
-// critical_only still runs the high-signal template LISTS (KEV, exposed-panels, log-exposures) —
-// those are not gated by the severity threshold — it only drops the thousands of high/medium CVE
-// templates, which is where the time goes.
-export type NucleiSeverity =
-  | 'critical_only'
-  | 'high_and_above'
-  | 'medium_and_above'
-  | 'low_and_above'
-  | 'all';
-
-// DEMO/POC: Artemis is configured (OVERRIDE_STANDARD_NUCLEI_TEMPLATES_TO_RUN) to scan only the
-// ~469 actively-exploited CISA-KEV web templates. We send 'all' for every depth so the full KEV
-// set runs (the override is the real bound); depth still varies which Artemis modules run.
-export const SCAN_PROFILE_NUCLEI_SEVERITY: Record<ScanProfileKey, NucleiSeverity> = {
-  essentials: 'all',
-  standard: 'all',
-  thorough: 'all',
-};
-
-/** How long the website tier waits for Artemis before finalizing — tied to depth so fast scans
- *  don't hang and thorough scans get room to complete. */
+// --- Website-tier wait window -------------------------------------------------
+// The vuln scan now runs as a separate `nuclei -as` step (lib/nuclei-scan.ts) with its own budget;
+// this only caps how long we wait for Artemis's fast hygiene modules before finalizing.
 export const SCAN_PROFILE_WEBSITE_TIMEOUT_MS: Record<ScanProfileKey, number> = {
-  essentials: 12 * 60_000,
-  standard: 25 * 60_000,
-  thorough: 45 * 60_000,
+  essentials: 6 * 60_000,
+  standard: 10 * 60_000,
+  thorough: 15 * 60_000,
 };
-
-export function nucleiSeverityForProfile(profile?: string | null): NucleiSeverity {
-  return SCAN_PROFILE_NUCLEI_SEVERITY[profile as ScanProfileKey] ?? SCAN_PROFILE_NUCLEI_SEVERITY.standard;
-}
 
 export function websiteTimeoutForProfile(profile?: string | null): number {
   return SCAN_PROFILE_WEBSITE_TIMEOUT_MS[profile as ScanProfileKey] ?? SCAN_PROFILE_WEBSITE_TIMEOUT_MS.standard;

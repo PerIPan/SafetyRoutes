@@ -389,6 +389,47 @@ npm run db:seed        # optional — sample report at /demo
 npm run dev            # http://localhost:3000
 ```
 
+## Setting up the scanner (Docker + Artemis)
+
+The website tier needs **Artemis** running locally via Docker. On a fresh machine:
+
+**1 — Install Docker**
+
+- **macOS:** [Docker Desktop](https://www.docker.com/products/docker-desktop/), or the lighter
+  [Colima](https://github.com/abiosoft/colima): `brew install colima docker && colima start`
+- **Linux:** [Docker Engine](https://docs.docker.com/engine/install/) + the Compose plugin
+- **Windows:** Docker Desktop (WSL2 backend)
+
+Verify: `docker run --rm hello-world`.
+
+**2 — Get and start Artemis**
+
+```bash
+git clone https://github.com/CERT-Polska/Artemis && cd Artemis
+cp env.example .env
+# edit .env and set (at minimum):
+#   FRONTEND_USERNAME=admin          # required, or it won't start
+#   FRONTEND_PASSWORD=<choose one>
+#   API_TOKEN=<note this value>      # SafetyRoutes uses it below
+./scripts/start --mode=development   # builds + starts the Karton modules via Docker Compose
+```
+
+First run pulls images and the ~13 K nuclei templates — give it a few minutes. The Artemis UI
+is then at **http://localhost:5000** (log in with the `FRONTEND_*` creds). Confirm the workers are
+up: `docker ps | grep karton`.
+
+**3 — Point SafetyRoutes at it** — in `web/.env.local`:
+
+```
+ARTEMIS_API_URL=http://localhost:5000
+ARTEMIS_API_TOKEN=<the API_TOKEN from Artemis's .env>
+```
+
+> **Note:** the website vuln scan runs `nuclei -as` via `docker exec` on Artemis's nuclei
+> container (default `artemis-karton-nuclei-1`), so SafetyRoutes must run on the **same host**
+> with Docker access. If your container name differs, set `NUCLEI_CONTAINER` (and `DOCKER_BIN`
+> if `docker` isn't at `/opt/homebrew/bin/docker`) in `web/.env.local`.
+
 ## Responsible use
 
 SafetyRoutes is intended for **authorized security testing only**. Scan only systems you

@@ -5,22 +5,21 @@ import {
   artemisConfigured, startScan, waitForScan, fetchResults, fetchCoverage, LCO_MODULES,
   type ArtemisTaskResult,
 } from '../artemis';
-import { nucleiSeverityForProfile, websiteTimeoutForProfile } from '../scan-profiles';
+import { websiteTimeoutForProfile } from '../scan-profiles';
 import { plainSeverity } from '../severity';
 import { idemKey, replaceSourceFindings } from '../findings';
 import { setSourceStatus, setScanArtemis } from '../scans';
-import { runNucleiAutomaticScan } from '../nuclei-scan';
+import { runNucleiAutomaticScan, isPanelHit, type NucleiResult } from '../nuclei-scan';
 import type { Finding, FindingSeverity } from '../types';
 
 // Interesting Artemis results can be indexed a few seconds after pending-tasks hits 0; settle
 // before the final fetch so late findings aren't dropped.
 const SETTLE_MS = 10_000;
-// Web-facing modules (vs. infra-only: IP lookup, port scan, mail/DNS). If none of these produced
-// a result, the public-website checks effectively didn't run (commonly because the site redirects
-// elsewhere), so a green "no issues" would be misleading.
-const WEB_MODULES = [
-  'nuclei-module', 'nuclei-router', 'vcs', 'directory_index', 'robots', 'webapp_identifier',
-];
+// Web-facing Artemis modules (vs. infra-only: IP lookup, port scan, mail/DNS). If none of these
+// produced a result, the public-website checks effectively didn't run (commonly because the site
+// redirects elsewhere), so a green "no issues" would be misleading. (nuclei is no longer an
+// Artemis module — its run-state is tracked separately via the NucleiResult status.)
+const WEB_MODULES = ['vcs', 'directory_index', 'robots', 'webapp_identifier'];
 
 // Friendly labels so a finding's title stays short/plain (some modules emit a paragraph).
 const MODULE_LABEL: Record<string, string> = {
@@ -158,13 +157,11 @@ export async function runWebsiteTier(
     return { count: 0, status: 'skipped' };
   }
 
-  // Depth-tied nuclei tuning: Essentials = critical_only (fast), Standard/Thorough widen coverage
-  // and get a longer wait window so their findings actually land in the report.
-  const severity = nucleiSeverityForProfile(profile);
+  // Depth tunes how long we wait for Artemis (the vuln scan is a separate nuclei -as step).
   const timeoutMs = websiteTimeoutForProfile(profile);
 
   await setSourceStatus(scanId, 'website', { status: 'running' });
-  const analysisId = await startScan(domain, `sr-${scanId}`, modules, severity);
+  const analysisId = await startScan(domain, `sr-${scanId}`, modules);
   if (!analysisId) {
     await setSourceStatus(scanId, 'website', {
       status: 'failed',
@@ -187,49 +184,79 @@ export async function runWebsiteTier(
   }
   const findings = raw.map((r) => mapResult(scanId, r)).filter((f): f is Finding => f !== null);
 
-  // Step 2: targeted nuclei automatic-scan (`-as`) — fingerprint the site (wappalyzer) and run only
-  // the templates that match its stack. Decoupled from Artemis and best-effort (returns [] on any
-  // failure), so the hygiene findings above are never blocked by it.
+  // Step 2: targeted nuclei vuln scan — `-as` (fingerprint → matching templates) + a fixed
+  // exposures/exposed-panels overlay. Best-effort; the explicit run status gates the "no issues"
+  // message below so a failed/timed-out scan never reads as a clean site.
+  let nuclei: NucleiResult = { status: 'error', hits: [], scheme: null };
   try {
-    const hits = await runNucleiAutomaticScan(domain);
-    for (const h of hits) {
-      const sev = (['critical', 'high', 'medium', 'low', 'info'].includes(h.severity)
-        ? h.severity
-        : 'info') as FindingSeverity;
-      findings.push({
-        scanId,
-        source: 'website',
-        confidence: sev === 'info' ? 'advisory' : 'confirmed',
-        title: h.name,
-        plainExplanation: h.description ?? (h.matchedAt ? `Detected at ${h.matchedAt}.` : null),
-        severity: sev,
-        severityPlain: plainSeverity(sev),
-        fixText: h.remediation,
-        cveId: h.cve,
-        module: 'nuclei',
-        artemisFindingId: `nuclei:${h.templateId}`,
-        enrichmentStatus: 'done',
-        idempotencyKey: idemKey(scanId, 'website', 'nuclei', h.templateId, h.matchedAt ?? ''),
-      });
-    }
+    nuclei = await runNucleiAutomaticScan(domain);
   } catch {
-    /* nuclei -as is optional — never fail the website tier on it */
+    /* keep the safe default */
+  }
+  for (const h of nuclei.hits) {
+    const sev = (['critical', 'high', 'medium', 'low', 'info'].includes(h.severity)
+      ? h.severity
+      : 'info') as FindingSeverity;
+    const panel = isPanelHit(h);
+    findings.push({
+      scanId,
+      source: 'website',
+      // exposed-panel hits are discovery only → advisory ("make sure it's protected").
+      confidence: panel || sev === 'info' ? 'advisory' : 'confirmed',
+      title: panel ? `Admin/login panel reachable: ${h.name}` : h.name,
+      plainExplanation: panel
+        ? `An admin or login panel (${h.name}) is reachable from the internet${
+            h.matchedAt ? ` at ${h.matchedAt}` : ''
+          }. That can be fine, but make sure it's behind a strong password and not exposed unnecessarily.`
+        : (h.description ?? (h.matchedAt ? `Found at ${h.matchedAt}.` : null)),
+      severity: sev,
+      severityPlain: plainSeverity(sev),
+      fixText: panel
+        ? 'Confirm this panel needs to be public; if not, restrict it (IP allowlist / VPN / take it offline).'
+        : h.remediation,
+      cveId: h.cve,
+      module: 'nuclei',
+      artemisFindingId: `nuclei:${h.templateId}`,
+      enrichmentStatus: 'done',
+      idempotencyKey: idemKey(scanId, 'website', 'nuclei', h.templateId, h.matchedAt ?? ''),
+    });
   }
 
-  // When a completed scan flagged nothing, be honest about what actually ran (C/D). If the
-  // web-facing modules never produced a result (commonly a redirect to another host), don't issue
-  // a green "all clear" — surface it as something to check (B: surfaced, not auto-followed, so we
-  // never scan a host the user didn't authorise).
-  if (findings.length === 0 && outcome === 'done') {
+  // The site answers on plain http but not https — a real (low-severity) finding for an LCO.
+  if (nuclei.scheme === 'http') {
+    findings.push({
+      scanId,
+      source: 'website',
+      confidence: 'advisory',
+      title: `${domain} isn't served over a secure (https) connection`,
+      plainExplanation:
+        `Your website answers on plain http but we couldn't reach it over https, so visitors' ` +
+        `connections aren't encrypted. Browsers increasingly warn people, and it undermines trust.`,
+      severity: 'low',
+      severityPlain: plainSeverity('low'),
+      fixText: 'Add a free TLS certificate (e.g. Let’s Encrypt, or one-click via your host) to serve the site over https.',
+      cveId: null,
+      module: 'nuclei',
+      artemisFindingId: 'nuclei:no-https',
+      enrichmentStatus: 'done',
+      idempotencyKey: idemKey(scanId, 'website', 'no-https'),
+    });
+  }
+
+  // When nothing was flagged, be honest about what actually ran. A green "all clear" is ONLY
+  // safe when the Artemis web-modules ran AND the nuclei vuln scan genuinely ran — otherwise a
+  // failed/timed-out scan would masquerade as a clean site (the most dangerous LCO-facing bug).
+  if (findings.length === 0) {
     const cov = await fetchCoverage(analysisId);
     const webRan = cov.modules.some((m) => WEB_MODULES.includes(m));
+    const trulyClean = outcome === 'done' && webRan && nuclei.status === 'ran';
     findings.push(
-      webRan
+      trulyClean
         ? {
             scanId, source: 'website', confidence: 'no_issue',
             title: `We checked ${domain} and found no obvious issues`,
             plainExplanation:
-              `We ran ${cov.total} checks on your public website — including the vulnerability scan and exposed-file checks — and nothing was flagged.`,
+              `We ran the website checks — the vulnerability scan, exposed-file checks, and email/DNS — and nothing was flagged.`,
             severity: 'info', severityPlain: plainSeverity('info'),
             fixText: 'Nothing to do here.',
             module: 'artemis', enrichmentStatus: 'done',
@@ -239,7 +266,9 @@ export async function runWebsiteTier(
             scanId, source: 'website', confidence: 'advisory',
             title: `We couldn't fully check ${domain}'s website`,
             plainExplanation:
-              `The deeper website checks (vulnerability scan, exposed-file checks) didn't return results for ${domain} — only the basic network and DNS checks did. This can happen when a site is a single-page app, sits behind a CDN/proxy, or opens at a different address.`,
+              nuclei.status === 'unreachable'
+                ? `We couldn't reach ${domain} over http or https, so the vulnerability scan didn't run. This is *not* a clean bill of health. It usually means the site opens at a different address (e.g. www.), is a single-page app, or sits behind a CDN/proxy.`
+                : `The vulnerability scan didn't finish for ${domain} (it ${nuclei.status === 'timeout' ? 'timed out' : "couldn't complete"}), so this is *not* a clean bill of health. This can happen on slow hosts, single-page apps, or sites behind a CDN/proxy.`,
             severity: 'info', severityPlain: plainSeverity('info'),
             fixText: domain.startsWith('www.')
               ? 'If your site opens at a different address, re-run the check against that one.'
