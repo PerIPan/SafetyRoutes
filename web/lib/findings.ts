@@ -21,6 +21,9 @@ function rowToFinding(r: Row): Finding {
     severityPlain: r.severity_plain as string | null,
     fixText: r.fix_text as string | null,
     cveId: r.cve_id as string | null,
+    isKev: (r.is_kev as boolean | null) ?? null,
+    epss: (r.epss as number | null) ?? null,
+    cvss: (r.cvss as number | null) ?? null,
     artemisFindingId: r.artemis_finding_id as string | null,
     module: r.module as string | null,
     trivyUploadId: r.trivy_upload_id as string | null,
@@ -40,8 +43,8 @@ async function insertFinding(client: PoolClient, f: Finding): Promise<void> {
        (scan_id, source, confidence, title, plain_explanation, severity, severity_plain,
         fix_text, cve_id, artemis_finding_id, module, trivy_upload_id, purl, package_name,
         ecosystem, installed_version, fixed_version, declared_software_id, enrichment_status,
-        idempotency_key)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+        idempotency_key, is_kev, epss, cvss)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
      ON CONFLICT (scan_id, idempotency_key) DO NOTHING`,
     [
       f.scanId, f.source, f.confidence, f.title, f.plainExplanation ?? null, f.severity ?? null,
@@ -49,6 +52,7 @@ async function insertFinding(client: PoolClient, f: Finding): Promise<void> {
       f.module ?? null, f.trivyUploadId ?? null, f.purl ?? null, f.packageName ?? null,
       f.ecosystem ?? null, f.installedVersion ?? null, f.fixedVersion ?? null,
       f.declaredSoftwareId ?? null, f.enrichmentStatus ?? 'pending', f.idempotencyKey ?? null,
+      f.isKev ?? null, f.epss ?? null, f.cvss ?? null,
     ],
   );
 }
@@ -80,9 +84,11 @@ export async function getFindings(scanId: string): Promise<Finding[]> {
   const rows = await query<Row>(
     `SELECT * FROM findings WHERE scan_id = $1
      ORDER BY
+       CASE WHEN is_kev THEN 0 ELSE 1 END,                       -- actively-exploited first
        CASE confidence WHEN 'confirmed' THEN 0 WHEN 'advisory' THEN 1 ELSE 2 END,
        CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2
                      WHEN 'low' THEN 3 ELSE 4 END,
+       COALESCE(epss, 0) DESC,                                   -- likeliest-exploited tiebreak
        created_at`,
     [scanId],
   );

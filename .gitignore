@@ -56,3 +56,10 @@ reports/
 
 # local working screenshots
 sr-app-*.png
+
+# generated scan artifacts / scratch screenshots (not source)
+/sr-trivy-report.json
+/sr-trivy-image-report.json
+/authe-scanning.png
+/sr-wizard-s1.png
+/sr-wizard-s1-fixed.png

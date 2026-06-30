@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SourceChip, ConfidencePill } from "./ui";
+import { bandOf, BAND_META, BAND_ORDER } from "@/lib/report";
 import type { Finding, FindingSource, FindingSeverity } from "@/lib/types";
 
 const SOURCES: { key: FindingSource | "all"; label: string }[] = [
@@ -67,7 +68,7 @@ function CveDetail({ cveId, finding }: { cveId: string; finding: Finding }) {
           <div className="flex flex-wrap gap-2">
             {d?.isKev && (
               <span className="rounded-md bg-[#F8E7E2] px-2 py-1 text-[11px] font-bold text-[#C0492E]">
-                ⚑ Actively exploited right now
+                ⚑ Actively exploited
               </span>
             )}
             {epssWord(d?.epssScore) && (
@@ -149,6 +150,11 @@ function FindingCard({
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[14.5px] font-semibold text-ink">{f.title}</span>
             <SevBadge s={f.severity} />
+            {f.isKev && (
+              <span className="rounded-md bg-[#F8E7E2] px-2 py-0.5 text-[11px] font-bold text-[#C0492E]">
+                ⚑ Actively exploited
+              </span>
+            )}
           </div>
           {f.plainExplanation && (
             <div className="mt-1 text-[13px] leading-relaxed text-ink-soft">
@@ -213,15 +219,34 @@ export function FindingsView({ findings }: { findings: Finding[] }) {
           No findings match {q ? `“${q}”` : "this filter"}.
         </p>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {filtered.map((f) => (
-            <FindingCard
-              key={f.id}
-              f={f}
-              open={openId === f.id}
-              onToggle={() => setOpenId(openId === f.id ? null : (f.id ?? null))}
-            />
-          ))}
+        <div className="flex flex-col gap-7">
+          {BAND_ORDER.map((band) => {
+            const group = filtered.filter((f) => bandOf(f) === band);
+            if (!group.length) return null;
+            const meta = BAND_META[band];
+            return (
+              <div key={band}>
+                <div className="mb-2.5 flex flex-wrap items-center gap-2.5">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: meta.color }} />
+                  <span className="text-[13px] font-bold text-ink">{meta.label}</span>
+                  <span className="rounded-full bg-paper px-2 py-0.5 font-mono text-[11px] text-muted">
+                    {group.length}
+                  </span>
+                  <span className="text-[12px] text-muted">{meta.blurb}</span>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  {group.map((f) => (
+                    <FindingCard
+                      key={f.id}
+                      f={f}
+                      open={openId === f.id}
+                      onToggle={() => setOpenId(openId === f.id ? null : (f.id ?? null))}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </>

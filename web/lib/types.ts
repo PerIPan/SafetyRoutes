@@ -17,6 +17,10 @@ export interface Finding {
   severityPlain?: string | null;
   fixText?: string | null;
   cveId?: string | null;
+  // prioritization (enrichment-derived; KEV-first ordering + report bands)
+  isKev?: boolean | null;
+  epss?: number | null;
+  cvss?: number | null;
   // website
   artemisFindingId?: string | null;
   module?: string | null;
@@ -45,6 +49,8 @@ export interface Scan {
   orgId: string;
   domain: string | null;
   status: ScanStatus;
+  profile: string; // website scan depth (essentials | standard | thorough)
+  uploadToken: string | null; // authorizes a curl-piped Trivy POST
   sourceStatus: Partial<Record<FindingSource, SourceStatus>>;
   createdAt: string;
 }

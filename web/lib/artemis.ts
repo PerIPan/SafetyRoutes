@@ -7,18 +7,44 @@
 const ARTEMIS_URL = (process.env.ARTEMIS_API_URL ?? 'http://localhost:5000').replace(/\/$/, '');
 const ARTEMIS_TOKEN = process.env.ARTEMIS_API_TOKEN ?? '';
 
-// A safe, low-impact module profile for LCOs (intrusive/brute modules deliberately excluded).
-export const LCO_MODULES = [
-  'classifier',
-  'webapp_identifier',
-  'nuclei',
-  'nuclei_router',
-  'vcs',
-  'directory_index',
-  'robots',
-  'mail_dns_scanner',
-  'port_scanner',
+// Scan-depth → Artemis module sets. The wizard lets the org dial how much of Artemis runs; all
+// three sets are safe/low-impact for LCOs (intrusive/brute modules deliberately excluded) and
+// differ only in breadth. Presentation copy (labels/blurbs/help) lives in lib/scan-profiles.ts —
+// the single client-safe source of truth — so this file owns only the module mapping.
+import type { ScanProfileKey } from './scan-profiles';
+
+// Core web checks — the actual point of this tier. IDs are Artemis Karton *identities* and must
+// match /api/get-modules-that-can-be-disabled exactly — note the HYPHENS in "nuclei-module" /
+// "nuclei-router"; sending "nuclei" silently drops it from enabled_modules (Artemis then disables
+// it). `classifier` and `webapp_identifier` are always-on (not disableable) so they run regardless.
+// port_scanner is the ENTRY POINT: it discovers the open HTTP service that webapp_identifier ->
+// nuclei-router -> nuclei-module (and vcs/directory_index/robots) then scan — so it must be in
+// every profile, or the web vulnerability scan can never run.
+const CORE_WEB = [
+  'port_scanner',    // finds the open HTTP service + open ports
+  'vcs',             // exposed .git / source control
+  'directory_index', // exposed directory listings
+  'robots',          // robots.txt disclosure
+  // NOTE: nuclei (nuclei-router/nuclei-module) is intentionally OUT of the web chain for the
+  // demo — it's slow, times out on CDN/PaaS hosts, and needs exact exploited software to fire.
+  // The reliable modules above + mail/DNS/domain-expiry (added per profile below) give fast,
+  // meaningful findings. The targeted vuln scan is being reworked to `nuclei -as` (fingerprint →
+  // matching templates) as a separate step.
 ];
+
+export const MODULE_SETS: Record<ScanProfileKey, string[]> = {
+  essentials: CORE_WEB,
+  standard: [...CORE_WEB, 'mail_dns_scanner'],
+  thorough: [...CORE_WEB, 'mail_dns_scanner', 'dns_scanner', 'domain_expiration_scanner'],
+};
+
+// Back-compat default profile (the original fixed LCO set == Thorough).
+export const LCO_MODULES = MODULE_SETS.thorough;
+
+/** Resolve a stored profile key to its Artemis module set (defaults to Standard). */
+export function modulesForProfile(profile?: string | null): string[] {
+  return MODULE_SETS[profile as ScanProfileKey] ?? MODULE_SETS.standard;
+}
 
 export function artemisConfigured(): boolean {
   return ARTEMIS_TOKEN.length > 0;
@@ -66,6 +92,9 @@ export async function startScan(
   domain: string,
   tag: string,
   modules: string[] = LCO_MODULES,
+  // nuclei severity_threshold (Artemis per-scan runtime config). Lower thresholds run fewer
+  // templates → faster scans. Omitted ⇒ Artemis's global default (high_and_above).
+  severity?: string | null,
 ): Promise<string | null> {
   const allowed = await disableableModules();
   // Refuse to scan if we can't confirm the module set — better to fail than fall back to
@@ -74,6 +103,12 @@ export async function startScan(
   const enabled = modules.filter((m) => allowed.includes(m));
   const payload: Record<string, unknown> = { targets: [domain], tag };
   if (enabled.length) payload.enabled_modules = enabled;
+  // Per-scan nuclei tuning. Key is "nuclei" (the API validates against RUNTIME_CONFIGURATION_CLASSES
+  // which is keyed "nuclei"; the module reads it via a "nuclei" fallback). Read at task time — no
+  // Artemis restart needed.
+  if (severity) {
+    payload.module_runtime_configurations = { nuclei: { severity_threshold: severity } };
+  }
 
   const body = await api<unknown>('/api/add', {
     method: 'POST',
@@ -86,9 +121,19 @@ export async function startScan(
     (body as { ids?: unknown[] }).ids ??
     (Array.isArray(body) ? body : null);
   const first = Array.isArray(ids) ? ids[0] : null;
-  if (typeof first === 'string') return first;
-  if (first && typeof first === 'object' && 'id' in first) return String((first as { id: unknown }).id);
-  return null;
+  const rawId =
+    typeof first === 'string'
+      ? first
+      : first && typeof first === 'object' && 'id' in first
+        ? String((first as { id: unknown }).id)
+        : null;
+  if (!rawId) return null;
+  // Artemis/Karton returns a task fquid like "{root_uid}:{uid}"; the ANALYSIS id is the root_uid
+  // (the first UUID). Without this, isDone never matches the analysis (instant false "done") and
+  // fetchResults/fetchCoverage query a garbage id and silently return nothing — i.e. every scan
+  // looked instantly "done" with no findings. Normalize to the bare analysis UUID.
+  const uuid = rawId.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  return uuid ? uuid[0] : rawId;
 }
 
 /** Best-effort "is this analysis finished" check (Artemis has no single done flag). */
@@ -150,4 +195,35 @@ export async function fetchResults(analysisId: string): Promise<ArtemisTaskResul
     if (rows.length < 200) break;
   }
   return out;
+}
+
+/** Coverage for an analysis: total task-results and which modules produced any — so a clean
+ *  result is auditable ("we ran N checks across these modules"), not indistinguishable from a
+ *  thin/empty scan. Hits only_interesting=false (every task, not just the flagged ones). */
+export async function fetchCoverage(
+  analysisId: string,
+): Promise<{ total: number; modules: string[] }> {
+  const modules = new Set<string>();
+  let total = 0;
+  for (let page = 1; page <= 20; page++) {
+    const data = await api<unknown>(
+      `/api/task-results?analysis_id=${encodeURIComponent(analysisId)}&only_interesting=false&page=${page}&page_size=300`,
+    );
+    const rows: unknown[] = Array.isArray(data)
+      ? data
+      : ((data as { data?: unknown[]; results?: unknown[] })?.data ??
+         (data as { results?: unknown[] })?.results ??
+         []);
+    if (!rows.length) break;
+    for (const r of rows) {
+      if (!r || typeof r !== 'object') continue;
+      const o = r as Record<string, unknown>;
+      const rec =
+        (o.receiver as string) ?? ((o.headers as Record<string, unknown>)?.receiver as string);
+      if (rec) modules.add(rec);
+      total++;
+    }
+    if (rows.length < 300) break;
+  }
+  return { total, modules: [...modules] };
 }

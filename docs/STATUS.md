@@ -6,6 +6,75 @@ A real **authe.org website scan via Artemis is in progress** — check its repor
 
 ---
 
+## Morning session (2026-06-30) — feature build (verified: 23 tests pass, tsc clean, migration applied)
+
+All built locally; **nothing pushed**. **Trivy was NOT run** — deferred to do together.
+
+- **Software autocomplete fix (Step 3).** Root cause was CSS, not data: the table wrapper's
+  `overflow-hidden` clipped the absolutely-positioned dropdown. Removed it; rounded the header
+  instead. (Proxy + upstream mitre both confirmed returning items.)
+- **Artemis scan-depth selector (the configurability point).** Wizard step 1 now offers
+  **Essentials / Standard / Thorough**, mapped to Artemis module sets in `lib/artemis.ts`
+  (`MODULE_PROFILES` / `modulesForProfile`). Stored as `scans.scan_profile`; threaded through
+  `/api/scans` → `/start` → `runWebsiteTier(domain, modules)`. Default Standard.
+- **Actionability (architect + security-agent recs).** Persisted `findings.is_kev / epss / cvss`;
+  tiers now enrich CVEs and **re-derive severity from the live DB** (uploaded Trivy `Severity` is
+  untrusted) + validate CVE-id before any outbound call. Report is **KEV-first ordered**, grouped
+  into bands **Fix now / Plan to fix / Needs a quick check / All clear**, with a top **"actively
+  exploited" banner** and an "⚑ Exploited now" chip. "Advisory" relabelled **"Needs a quick check"**.
+- **Integrated Trivy (built, not run).** Per 3 agents (architect/security/devops): the
+  `trivy-upload` endpoint already ingests raw JSON as the POST body, so the report page now shows a
+  **one-liner** — `docker run aquasec/trivy … fs … | curl --data-binary @- …/trivy-upload?token=…`
+  — that runs Trivy on the user's host and POSTs results straight back (no manual file pick), plus a
+  file fallback (`components/server-check.tsx`). Added a per-scan `scans.upload_token` + token check
+  on the route. Execution stays on the user's host (correct trust boundary).
+- **LLM business-impact summary:** parked at your request. Proven manually in-session (Playwright
+  read of authe.app + findings → plain-language write-up); productionizing it later = one
+  `claude-opus-4-8` call fed {findings + light site look}.
+
+**Still open (with you):** run Trivy together; decide whether uploaded findings should be downgraded
+from `confirmed` (security agent's provenance point — left as-is for now to avoid changing report
+semantics); add `trivy image <name>` variant; longer-term signed agent / GitHub Action.
+
+### Adversarial review pass (4 agents) + fixes applied
+
+Multi-agent review (security / correctness / architecture / frontend) with **per-finding adversarial
+verification** (fresh skeptic, default-refute): **26 raised → 13 confirmed** (0 blocker, 0 high,
+2 medium, 6 low, 5 nits). Verdict: *safe to keep; net improvement*. **Fixed all 13** (tsc clean,
+23 tests pass, both pages 200, token-in-command verified):
+- **a11y:** DepthHelp focus trap + initial/restore focus + body-scroll lock; autocomplete keyboard
+  nav (arrow/Enter/Esc + combobox ARIA); help-trigger `aria-label`.
+- **security/clarity:** constant-time upload-token compare + documented trust model in the route;
+  token-disclosure UI note. *Deferred to multi-tenant (documented):* fail-closed token + non-
+  destructive Trivy ingest.
+- **DRY:** collapsed the 3 scan-depth copies into one client-safe `lib/scan-profiles.ts` (wizard,
+  help modal, artemis module-map, and scans validation all consume it).
+- **polish:** KEV wording standardized ("Actively exploited"); Trivy one-liner uses the server
+  origin (no localhost flash); severity comment narrowed to match the code.
+
+### Live-test fixes (Artemis login + scan accuracy)
+
+- **Artemis web login was impossible** — `FRONTEND_USERNAME`/`FRONTEND_PASSWORD` default to `""`
+  and were never set. Set **admin / safetyroutes** in `dev/artemis/docker-compose.override.yaml`
+  and restarted the web container (verified the login POST is accepted).
+- **Step-3 autocomplete:** verified working live via Playwright (type → dropdown → select fills
+  vendor+product, 0 console errors). The earlier "broken" was a stale tab from before the
+  overflow-hidden fix — a hard refresh clears it.
+- **authe.app "all clear" was false.** Artemis evidence (analysis `f7925f17`): it ran only infra
+  modules (classifier / IP / port / mail-DNS); the web modules (nuclei / vcs / dir-index / robots)
+  produced nothing because **apex `authe.app` 301-redirects to `www.authe.app`**, AND it flagged a
+  real **DMARC `p=none`** mail finding that our report silently dropped. Fixed:
+  - **A (race):** settle 10s + re-fetch + union after "done", so late-indexed results (the DMARC
+    one) aren't dropped.
+  - **C:** persist `artemis_analysis_id`; new `fetchCoverage()` records modules/tasks actually run.
+  - **D / B:** honest no-issue copy ("we ran N checks…"); when the web modules never ran, downgrade
+    from a green all-clear to a **"couldn't fully check — your site likely redirects to www"**
+    advisory (surfaced, NOT auto-followed, to respect the scan allowlist).
+  - `mapResult` keeps titles short (paragraph results → detail moves to the explanation).
+  - tsc clean, 23 tests pass. Live proof pending a re-run (do together).
+
+---
+
 ## Post-review update (both agent reviews done + fixes applied)
 
 Two agents reviewed the code (security + correctness). **The must-fixes are done; the rest is

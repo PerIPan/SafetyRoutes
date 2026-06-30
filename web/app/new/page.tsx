@@ -3,11 +3,15 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brand } from "@/components/ui";
+import { DepthHelp } from "@/components/depth-help";
+import { SCAN_PROFILE_META } from "@/lib/scan-profiles";
 
 type SoftwareRow = { vendor: string; product: string; version: string };
 type AppSuggestion = { vendor: string; product: string; normalized: string; cveCount: number | null };
 
 const STEPS = ["Permission & site", "Server packages", "Other software", "Run the check"];
+// Scan-depth options (labels/blurbs) come from the shared, client-safe lib/scan-profiles.ts
+// (SCAN_PROFILE_META) — same source the help modal and the server module mapping use.
 
 export default function NewScan() {
   const router = useRouter();
@@ -15,6 +19,8 @@ export default function NewScan() {
   const [domain, setDomain] = useState("");
   const [consentBy, setConsentBy] = useState("");
   const [consent, setConsent] = useState(false);
+  const [profile, setProfile] = useState("standard");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [trivyName, setTrivyName] = useState<string | null>(null);
   const [trivyText, setTrivyText] = useState<string | null>(null);
   const [rows, setRows] = useState<SoftwareRow[]>([
@@ -24,9 +30,13 @@ export default function NewScan() {
   const [error, setError] = useState<string | null>(null);
   const [acItems, setAcItems] = useState<AppSuggestion[]>([]);
   const [acRow, setAcRow] = useState<number | null>(null);
+  const [acHi, setAcHi] = useState(-1); // keyboard-highlighted suggestion index
   const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canStart = domain.trim().length > 0 && consent;
+  // Version is required for any software the user lists — without it we can't match the exact CVE
+  // set (only a vague vendor/product guess). A row with a product but no version blocks Continue.
+  const softwareIncomplete = rows.some((r) => r.product.trim() && !r.version.trim());
 
   async function onTrivyFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -41,6 +51,7 @@ export default function NewScan() {
   function onProductType(i: number, value: string) {
     setRow(i, { product: value });
     setAcRow(i);
+    setAcHi(-1);
     if (acTimer.current) clearTimeout(acTimer.current);
     if (value.trim().length < 2) {
       setAcItems([]);
@@ -57,6 +68,7 @@ export default function NewScan() {
     setRow(i, { vendor: s.vendor, product: s.product });
     setAcItems([]);
     setAcRow(null);
+    setAcHi(-1);
   }
 
   async function run() {
@@ -71,6 +83,7 @@ export default function NewScan() {
           consentBy: consentBy.trim() || null,
           ownershipVerified: true,
           ownershipMethod: "owner-allowlist",
+          profile,
         }),
       });
       const { id } = await scanRes.json();
@@ -185,6 +198,59 @@ export default function NewScan() {
                 it or have written permission to test it.
               </span>
             </label>
+
+            <div className="mt-7 max-w-[560px]">
+              <div className="mb-2 flex items-center gap-2.5">
+                <span className="text-[13px] font-semibold text-ink">
+                  How deep should the website check go?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHelpOpen(true)}
+                  aria-label="Which should I pick?"
+                  className="rounded-full border border-line px-2.5 py-0.5 font-mono text-[11px] text-route-deep hover:border-route"
+                >
+                  <span aria-hidden="true">?</span> Which should I pick
+                </button>
+              </div>
+              <div className="grid gap-2">
+                {SCAN_PROFILE_META.map((d) => {
+                  const on = profile === d.key;
+                  return (
+                    <button
+                      key={d.key}
+                      type="button"
+                      onClick={() => setProfile(d.key)}
+                      aria-pressed={on}
+                      className={`flex items-start gap-3 rounded-xl border-[1.5px] px-4 py-3 text-left transition-colors ${
+                        on
+                          ? "border-route bg-[#F1FAFA]"
+                          : "border-line bg-[#FBFDFC] hover:border-route/50"
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2 ${
+                          on ? "border-route" : "border-line"
+                        }`}
+                      >
+                        {on && <span className="h-2 w-2 rounded-full bg-route" />}
+                      </span>
+                      <span>
+                        <span className="text-[14px] font-semibold text-ink">{d.label}</span>
+                        {d.key === "standard" && (
+                          <span className="ml-2 rounded bg-[#E2F1F0] px-1.5 py-0.5 font-mono text-[10px] text-route-deep">
+                            recommended
+                          </span>
+                        )}
+                        <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-soft">
+                          {d.blurb}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </Section>
         )}
 
@@ -212,24 +278,22 @@ export default function NewScan() {
             title="Software on your computers? (Optional)"
             lede="List desktop or office software you use. We can't scan it, but we'll match each one against MITRE Explorer and flag the known issues to check — marked Advisory."
           >
-            <div className="max-w-[680px] overflow-hidden rounded-xl border border-line">
-              <div className="grid grid-cols-[1fr_1.4fr_0.9fr_36px] gap-3 bg-[#F4F6F5] px-4 py-2.5 font-mono text-[11px] uppercase tracking-wide text-muted">
-                <span>Vendor</span>
+            {/* no overflow-hidden here: it would clip the absolutely-positioned autocomplete
+                dropdown. Corners are kept tidy by rounding the header/last row instead. */}
+            <div className="max-w-[680px] rounded-xl border border-line">
+              <div className="grid grid-cols-[1.4fr_1fr_0.9fr_36px] gap-3 rounded-t-xl bg-[#F4F6F5] px-4 py-2.5 font-mono text-[11px] uppercase tracking-wide text-muted">
                 <span>Product</span>
-                <span>Version</span>
+                <span>Vendor</span>
+                <span>
+                  Version <span className="text-risk" aria-label="required">*</span>
+                </span>
                 <span />
               </div>
               {rows.map((r, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-[1fr_1.4fr_0.9fr_36px] items-start gap-3 border-t border-[#EEF2F1] px-4 py-2"
+                  className="grid grid-cols-[1.4fr_1fr_0.9fr_36px] items-start gap-3 border-t border-[#EEF2F1] px-4 py-2"
                 >
-                  <input
-                    value={r.vendor}
-                    placeholder="Microsoft"
-                    onChange={(e) => setRow(i, { vendor: e.target.value })}
-                    className="rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
-                  />
                   <div className="relative">
                     <input
                       value={r.product}
@@ -237,19 +301,55 @@ export default function NewScan() {
                       onChange={(e) => onProductType(i, e.target.value)}
                       onFocus={() => setAcRow(i)}
                       onBlur={() => setTimeout(() => setAcRow((cur) => (cur === i ? null : cur)), 150)}
+                      onKeyDown={(e) => {
+                        if (acRow !== i || acItems.length === 0) return;
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setAcHi((h) => Math.min(acItems.length - 1, h + 1));
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setAcHi((h) => Math.max(0, h - 1));
+                        } else if (e.key === "Enter" && acHi >= 0 && acItems[acHi]) {
+                          e.preventDefault();
+                          pickSuggestion(i, acItems[acHi]);
+                        } else if (e.key === "Escape") {
+                          setAcItems([]);
+                          setAcHi(-1);
+                        }
+                      }}
+                      role="combobox"
+                      aria-expanded={acRow === i && acItems.length > 0}
+                      aria-controls={`ac-${i}`}
+                      aria-autocomplete="list"
+                      aria-activedescendant={
+                        acRow === i && acHi >= 0 ? `ac-${i}-${acHi}` : undefined
+                      }
                       className="w-full rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
                     />
                     {acRow === i && acItems.length > 0 && (
-                      <ul className="absolute z-20 mt-1 max-h-64 w-[340px] overflow-auto rounded-lg border border-line bg-white shadow-xl">
-                        {acItems.map((s) => (
-                          <li key={s.normalized}>
+                      <ul
+                        id={`ac-${i}`}
+                        role="listbox"
+                        className="absolute z-20 mt-1 max-h-64 w-[340px] overflow-auto rounded-lg border border-line bg-white shadow-xl"
+                      >
+                        {acItems.map((s, idx) => (
+                          <li
+                            key={s.normalized}
+                            id={`ac-${i}-${idx}`}
+                            role="option"
+                            aria-selected={idx === acHi}
+                          >
                             <button
                               type="button"
+                              tabIndex={-1}
+                              onMouseEnter={() => setAcHi(idx)}
                               onMouseDown={(e) => {
                                 e.preventDefault();
                                 pickSuggestion(i, s);
                               }}
-                              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] hover:bg-paper"
+                              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] ${
+                                idx === acHi ? "bg-paper" : "hover:bg-paper"
+                              }`}
                             >
                               <span className="truncate">
                                 <b className="text-ink">{s.product}</b>{" "}
@@ -265,10 +365,19 @@ export default function NewScan() {
                     )}
                   </div>
                   <input
+                    value={r.vendor}
+                    placeholder="auto-filled"
+                    onChange={(e) => setRow(i, { vendor: e.target.value })}
+                    className="rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
+                  />
+                  <input
                     value={r.version}
                     placeholder="2024"
+                    aria-invalid={!!(r.product.trim() && !r.version.trim())}
                     onChange={(e) => setRow(i, { version: e.target.value })}
-                    className="rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
+                    className={`rounded-md border bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none ${
+                      r.product.trim() && !r.version.trim() ? 'border-risk' : 'border-line'
+                    }`}
                   />
                   <button
                     onClick={() => setRows(rows.filter((_, j) => j !== i))}
@@ -297,6 +406,12 @@ export default function NewScan() {
           >
             <ul className="max-w-[560px] space-y-2 text-[14px] text-ink-soft">
               <li>🌐 Website: <b className="text-ink">{domain || "—"}</b></li>
+              <li>
+                🔎 Depth:{" "}
+                <b className="text-ink">
+                  {SCAN_PROFILE_META.find((d) => d.key === profile)?.label ?? "Standard"}
+                </b>
+              </li>
               <li>📦 Server packages: <b className="text-ink">{trivyName ?? "skipped"}</b></li>
               <li>
                 💻 Other software:{" "}
@@ -325,9 +440,15 @@ export default function NewScan() {
                 Enter a website and tick the authorization box to continue
               </span>
             )}
+            {step === 2 && softwareIncomplete && (
+              <span className="text-[13px] text-risk">
+                Add a version for each software you listed — it’s required to match the right
+                issues (or remove the row).
+              </span>
+            )}
             {step < STEPS.length - 1 ? (
               <button
-                disabled={step === 0 && !canStart}
+                disabled={(step === 0 && !canStart) || (step === 2 && softwareIncomplete)}
                 onClick={() => setStep(step + 1)}
                 className="rounded-xl bg-route px-6 py-3 text-[14.5px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
               >
@@ -345,6 +466,17 @@ export default function NewScan() {
           </div>
         </div>
       </main>
+
+      <DepthHelp
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        depths={SCAN_PROFILE_META}
+        value={profile}
+        onPick={(k) => {
+          setProfile(k);
+          setHelpOpen(false);
+        }}
+      />
     </div>
   );
 }

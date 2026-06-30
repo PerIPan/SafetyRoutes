@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { query, queryOne } from './db';
+import { isScanProfile, DEFAULT_SCAN_PROFILE } from './scan-profiles';
 import type { FindingSource, Scan, ScanStatus, SourceStatus } from './types';
 
 const DEMO_ORG = 'Demo organization';
@@ -20,13 +22,17 @@ export interface CreateScanInput {
   consentBy?: string | null;
   ownershipVerified?: boolean;
   ownershipMethod?: string | null;
+  profile?: string | null; // website scan depth
 }
 
 export async function createScan(input: CreateScanInput): Promise<string> {
   const orgId = await ensureDemoOrg();
+  const profile = isScanProfile(input.profile) ? input.profile : DEFAULT_SCAN_PROFILE;
   const row = await queryOne<{ id: string }>(
-    `INSERT INTO scans (org_id, domain, status, consent_by, consent_at, ownership_verified, ownership_method)
-     VALUES ($1, $2, 'pending', $3, now(), $4, $5)
+    `INSERT INTO scans
+       (org_id, domain, status, consent_by, consent_at, ownership_verified, ownership_method,
+        scan_profile, upload_token)
+     VALUES ($1, $2, 'pending', $3, now(), $4, $5, $6, $7)
      RETURNING id`,
     [
       orgId,
@@ -34,6 +40,8 @@ export async function createScan(input: CreateScanInput): Promise<string> {
       input.consentBy ?? null,
       input.ownershipVerified ?? false,
       input.ownershipMethod ?? null,
+      profile,
+      randomUUID().replace(/-/g, ''),
     ],
   );
   return row!.id;
@@ -46,6 +54,8 @@ function rowToScan(r: ScanRow): Scan {
     orgId: r.org_id as string,
     domain: r.domain as string | null,
     status: r.status as ScanStatus,
+    profile: (r.scan_profile as string) ?? 'standard',
+    uploadToken: (r.upload_token as string | null) ?? null,
     sourceStatus: (r.source_status ?? {}) as Scan['sourceStatus'],
     createdAt: String(r.created_at),
   };
@@ -58,6 +68,15 @@ export async function getScan(id: string): Promise<Scan | null> {
 
 export async function setScanStatus(id: string, status: ScanStatus): Promise<void> {
   await query(`UPDATE scans SET status = $2, updated_at = now() WHERE id = $1`, [id, status]);
+}
+
+/** Record which Artemis analysis backed this scan (auditability — so a clean website result can
+ *  be traced to a real analysis + its task coverage). */
+export async function setScanArtemis(id: string, analysisId: string): Promise<void> {
+  await query(
+    `UPDATE scans SET artemis_analysis_id = $2, updated_at = now() WHERE id = $1`,
+    [id, analysisId],
+  );
 }
 
 /** Merge a per-source status into scans.source_status (jsonb). */

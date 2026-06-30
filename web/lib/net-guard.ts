@@ -53,6 +53,17 @@ export async function checkScanTarget(domain: string): Promise<GuardResult> {
   const [v4, v6] = await Promise.allSettled([dns.resolve4(d), dns.resolve6(d)]);
   if (v4.status === 'fulfilled') ips.push(...v4.value);
   if (v6.status === 'fulfilled') ips.push(...v6.value);
+  // Fallback to getaddrinfo (the OS resolver) when the direct DNS query returns nothing:
+  // dns.resolve4/6 hit a single configured nameserver and fail on transient errors, which would
+  // otherwise abort the whole scan. The public/private-IP check below still applies to every IP.
+  if (!ips.length) {
+    try {
+      const looked = await dns.lookup(d, { all: true });
+      ips.push(...looked.map((r) => r.address));
+    } catch {
+      /* fall through to the not-resolved error */
+    }
+  }
   if (!ips.length) return { ok: false, reason: 'Domain did not resolve to a public address.' };
 
   for (const ip of ips) {
@@ -63,10 +74,16 @@ export async function checkScanTarget(domain: string): Promise<GuardResult> {
   return { ok: true };
 }
 
-/** Combined gate: allowlist + SSRF. Returns ok or a 403-worthy reason. */
+// Local-testing escape hatch: with SCAN_ALLOW_ANY=true the OWNERSHIP allowlist is bypassed, but the
+// SSRF / private-IP guard below ALWAYS applies. Never enable this on a deployed or multi-user
+// instance — unauthorised scanning of third-party sites is the one thing a scanning tool must not
+// do by default. Flip it back to re-lock to own-sites-only.
+const ALLOW_ANY = process.env.SCAN_ALLOW_ANY === 'true';
+
+/** Combined gate: (allowlist unless opened) + SSRF. Returns ok or a 403-worthy reason. */
 export async function authorizeScan(domain: string): Promise<GuardResult> {
-  if (!domainAllowed(domain)) {
+  if (!ALLOW_ANY && !domainAllowed(domain)) {
     return { ok: false, reason: 'This domain is not in the scan allowlist (own-sites-only for now).' };
   }
-  return checkScanTarget(domain);
+  return checkScanTarget(domain); // SSRF / private-IP guard always runs, even when opened
 }

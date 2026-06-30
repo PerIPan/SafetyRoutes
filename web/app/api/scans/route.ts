@@ -8,6 +8,7 @@ export async function POST(req: Request) {
     consentBy: typeof body.consentBy === 'string' ? body.consentBy : null,
     ownershipVerified: !!body.ownershipVerified,
     ownershipMethod: typeof body.ownershipMethod === 'string' ? body.ownershipMethod : null,
+    profile: typeof body.profile === 'string' ? body.profile : null,
   });
   return Response.json({ id }, { status: 201 });
 }

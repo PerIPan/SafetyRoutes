@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { getScan } from '@/lib/scans';
 import { queryOne, query } from '@/lib/db';
 import { looksLikeTrivy } from '@/lib/trivy';
@@ -6,11 +6,31 @@ import { runPackagesTier } from '@/lib/tiers/packages';
 
 const MAX_BYTES = 8_000_000; // ~8 MB — keep it small (untrusted upload)
 
+/** Constant-time string compare (avoids leaking the token via timing). */
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
+
 // POST /api/scans/:id/trivy-upload — body is the raw Trivy JSON report.
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const scan = await getScan(id);
   if (!scan) return Response.json({ error: 'Scan not found' }, { status: 404 });
+
+  // Trust model — local-first demo with NO auth/multi-tenant (see lib/scans.ts ensureDemoOrg):
+  // possession of the unguessable scan id is the capability. The optional ?token= only rejects a
+  // *supplied wrong* token (constant-time), so the curl one-liner can't be replayed against another
+  // scan with a guessed token; the same-origin wizard upload sends none and is allowed. This is
+  // deliberately NOT fail-closed. Before any multi-tenant/real-auth use: require the token whenever
+  // scan.uploadToken is set, backfill existing rows, and make ingestion non-destructive (merge
+  // rather than replace-all in runPackagesTier) so a crafted upload cannot erase prior findings.
+  const reqUrl = new URL(req.url);
+  const token = reqUrl.searchParams.get('token');
+  if (token && scan.uploadToken && !safeEqual(token, scan.uploadToken)) {
+    return Response.json({ error: 'Invalid upload token.' }, { status: 403 });
+  }
 
   const text = await req.text();
   if (text.length > MAX_BYTES) {
@@ -30,8 +50,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     );
   }
 
-  const url = new URL(req.url);
-  const filename = url.searchParams.get('filename') ?? 'trivy-report.json';
+  const filename = reqUrl.searchParams.get('filename') ?? 'trivy-report.json';
   const key = createHash('sha256').update(text).digest('hex');
 
   const upload = await queryOne<{ id: string }>(

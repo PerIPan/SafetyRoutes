@@ -115,15 +115,27 @@ export async function searchApplications(q: string): Promise<MitreAppSuggestion[
   const key = `appsuggest:${term.toLowerCase()}`;
   const cached = await cacheGet<MitreAppSuggestion[]>(key);
   if (cached) return cached;
-  const list = await getJson<{
-    data?: { vendor: string; product: string; normalized: string; cveCount?: number }[];
-  }>(`/api/v1/applications?search=${encodeURIComponent(term)}&limit=8&sort=cve_count`);
-  const items = (list?.data ?? []).map((d) => ({
-    vendor: d.vendor,
-    product: d.product,
-    normalized: d.normalized,
-    cveCount: d.cveCount ?? null,
-  }));
+
+  type Row = { vendor: string; product: string; normalized: string; cveCount?: number };
+  const fetchFor = async (s: string): Promise<MitreAppSuggestion[]> => {
+    const list = await getJson<{ data?: Row[] }>(
+      `/api/v1/applications?search=${encodeURIComponent(s)}&limit=8&sort=cve_count`,
+    );
+    return (list?.data ?? []).map((d) => ({
+      vendor: d.vendor,
+      product: d.product,
+      normalized: d.normalized,
+      cveCount: d.cveCount ?? null,
+    }));
+  };
+
+  let items = await fetchFor(term);
+  // Vendor-prefixed phrases ("google chrome", "microsoft teams") often phrase-match nothing
+  // upstream; fall back to the most specific token (usually the product) so the dropdown isn't empty.
+  if (items.length === 0 && /\s/.test(term)) {
+    const last = term.split(/\s+/).filter(Boolean).pop();
+    if (last && last.length >= 2) items = await fetchFor(last);
+  }
   if (items.length) await cacheSet(key, items, 24);
   return items;
 }

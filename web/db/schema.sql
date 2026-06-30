@@ -127,3 +127,14 @@ CREATE TABLE IF NOT EXISTS scan_audit (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_scan_audit_scan ON scan_audit(scan_id);
+
+-- ── additive migrations (idempotent — safe to re-run on an existing DB) ───────
+-- website scan depth chosen in the wizard (essentials | standard | thorough).
+ALTER TABLE scans    ADD COLUMN IF NOT EXISTS scan_profile text NOT NULL DEFAULT 'standard';
+-- per-scan token so a `curl`-piped Trivy run can POST results without a session cookie.
+ALTER TABLE scans    ADD COLUMN IF NOT EXISTS upload_token text;
+-- prioritization signals persisted at finding-write time (KEV-first ordering + bands).
+ALTER TABLE findings ADD COLUMN IF NOT EXISTS is_kev boolean;
+ALTER TABLE findings ADD COLUMN IF NOT EXISTS epss   real;
+ALTER TABLE findings ADD COLUMN IF NOT EXISTS cvss   real;
+CREATE INDEX IF NOT EXISTS idx_findings_scan_kev ON findings(scan_id, is_kev);

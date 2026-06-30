@@ -1,13 +1,14 @@
 // Server-packages tier: ingest a Trivy report → Confirmed findings, enriched via mitre /packages.
 // Trivy already gives the version verdict, so these are Confirmed regardless of enrichment.
 import { parseTrivyReport } from '../trivy';
-import { plainSeverity } from '../severity';
-import { getPackageAdvisories } from '../mitre';
+import { plainSeverity, severityFromCvss } from '../severity';
+import { getCveDetail } from '../mitre';
 import { idemKey, replaceSourceFindings } from '../findings';
 import { setSourceStatus } from '../scans';
 import type { Finding } from '../types';
 
 const MAX_ENRICH_CALLS = 60; // cap outbound mitre calls per scan (rest stay 'pending')
+const CVE_RE = /^CVE-\d{4}-\d+$/i; // validate the id before it becomes an outbound URL
 
 export interface PackagesTierResult {
   count: number;
@@ -28,14 +29,24 @@ export async function runPackagesTier(
 
   for (const f of tf) {
     let plainExplanation: string | null = f.title;
+    // the uploaded Severity is untrusted; we re-derive it from enrichment WHEN available (valid CVE
+    // id + a cached/online CVSS). When enrichment is unavailable we fall back to the report's value.
+    let severity = f.severity;
+    let isKev: boolean | null = null;
+    let epss: number | null = null;
+    let cvss: number | null = null;
     let enrichmentStatus: Finding['enrichmentStatus'] = 'pending';
 
-    if (enrich && f.ecosystem && enrichCalls < MAX_ENRICH_CALLS) {
+    if (enrich && CVE_RE.test(f.vulnerabilityId) && enrichCalls < MAX_ENRICH_CALLS) {
       enrichCalls++;
-      const pkg = await getPackageAdvisories(f.ecosystem, f.pkgName);
-      if (pkg) {
-        const adv = pkg.advisories.find((a) => a.cveId === f.vulnerabilityId);
-        if (adv?.summary) plainExplanation = adv.summary;
+      const d = await getCveDetail(f.vulnerabilityId);
+      if (d) {
+        if (d.description) plainExplanation = d.description;
+        const enrichedSev = severityFromCvss(d.cvssSeverity);
+        if (enrichedSev) severity = enrichedSev; // authoritative over the report's own value
+        isKev = d.isKev ?? null;
+        epss = d.epssScore ?? null;
+        cvss = d.cvssScore ?? null;
         enrichmentStatus = 'done';
       } else {
         enrichmentStatus = 'unavailable';
@@ -48,12 +59,15 @@ export async function runPackagesTier(
       confidence: 'confirmed',
       title: `${f.pkgName} ${f.installedVersion ?? ''}`.trim() + ' has a known vulnerability',
       plainExplanation,
-      severity: f.severity,
-      severityPlain: plainSeverity(f.severity),
+      severity,
+      severityPlain: plainSeverity(severity),
       fixText: f.fixedVersion
         ? `Update ${f.pkgName} to ${f.fixedVersion} (or newer).`
         : `Update ${f.pkgName} to a patched version.`,
       cveId: f.vulnerabilityId,
+      isKev,
+      epss,
+      cvss,
       trivyUploadId,
       purl: f.purl,
       packageName: f.pkgName,

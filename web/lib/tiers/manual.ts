@@ -55,7 +55,7 @@ export async function runManualTier(
       }
       if (verdict === 'not_affected') continue; // version is outside the affected range
 
-      const sev = severityFromCvss(c.cvssSeverity);
+      const sev = severityFromCvss(detail?.cvssSeverity ?? c.cvssSeverity);
       out.push({
         scanId, source: 'other', confidence: 'advisory',
         title: `${app.vendor} ${app.product} ${item.version} — ${c.cveId}`,
@@ -68,6 +68,9 @@ export async function runManualTier(
             ? "We couldn't confirm your exact version — check the vendor and apply any updates."
             : 'We can\'t scan this device. Check the vendor for updates and apply them.',
         cveId: c.cveId,
+        isKev: detail?.isKev ?? c.isKev ?? null,
+        epss: detail?.epssScore ?? null,
+        cvss: detail?.cvssScore ?? null,
         declaredSoftwareId: item.id ?? null,
         enrichmentStatus: detail ? 'done' : 'unavailable',
         idempotencyKey: idemKey(scanId, 'other', item.product, item.version, c.cveId),

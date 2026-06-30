@@ -2,7 +2,9 @@
 
 A vulnerability scanning tool for identifying security weaknesses across applications and infrastructure.
 
-> **Status:** early development — project scaffolding in progress.
+> **Status:** working build — a guided wizard with the Website (Artemis), Server-packages
+> (Trivy), and Other-software (MITRE Explorer) tiers all functional. Built for the Ransomware
+> Defence Summer Bootcamp.
 
 ## In plain words
 
@@ -60,9 +62,11 @@ and action.
 
 ## Overview
 
-SafetyRoutes aims to help developers and security teams discover, prioritize, and
-remediate vulnerabilities. The scope, scanning targets, and tech stack are still being
-defined — see the roadmap below.
+SafetyRoutes is a **Next.js + PostgreSQL** app that wraps three trusted, free security tools
+behind one guided wizard built for non-technical organizations: **Artemis** (+ Nuclei) checks
+the website, **Trivy** checks a server's packages, and **MITRE Explorer** connects the software
+an org runs to the flaws known to affect it. Three inputs → one plain-language, source-tagged
+report. We only ever scan organizations that have asked us to.
 
 ## Scanning engine: Artemis
 
@@ -178,46 +182,49 @@ flowchart TD
 7. **Report** → one source-tagged report: **Confirmed** (Website, Server) · **Advisory** (Other,
    verify locally) · **No issue found**.
 
-## Wizard mockup (for team alignment)
+## The app
 
-A non-functional, clickable-looking prototype to align the team on the flow, the **three
-real inputs**, and the tone — **not built code yet**. Source:
-[`mock/wizard.html`](mock/wizard.html) (open in a browser, or append `?screen=1`…`6`). The
-inputs mirror what each tool actually needs.
+Screens from the working build. The wizard collects up to three inputs, then merges everything
+into one source-tagged, plain-language report.
 
-**1 · Permission & site** — consent first; the website address is the real **Artemis** target.
+**Landing** — what it is, and the three things it checks.
 
-![Permission step](docs/screenshots/sr-1-permission.png)
+![Landing](docs/screenshots/01-landing.png)
 
-**2 · What we'll check** — the **three sources**, each with its tool, its input method, and
-its confidence: **Website** (Artemis + Nuclei, automatic, *Confirmed*) · **Server packages**
-(Trivy upload, *Confirmed*) · **Other software** (manual, *Advisory*).
+**Step 1 · Permission & site** — consent first; the website address is the real **Artemis**
+target. Choose how deep the website check goes.
 
-![Three sources step](docs/screenshots/sr-2-sources.png)
+![Permission & site](docs/screenshots/02-wizard-step1.png)
 
-**3 · Server packages (Trivy)** — the real command (`trivy fs --scanners vuln --format json
---output sr-report.json /`), the uploaded report, and a preview of what we read **by PURL**
-(installed → fixed version + severity).
+**Choosing depth** — a plain-language comparison of Essentials / Standard / Thorough: what each
+one checks and how long it takes.
 
-![Server packages step](docs/screenshots/sr-3-packages.png)
+![Scan depth help](docs/screenshots/03-depth-help.png)
 
-**4 · Other software (manual)** — structured **vendor / product / version** entry (Office,
-Acrobat, RHEL). Matched in MITRE Explorer by exact version; flagged **Advisory — verify
-locally**, never *Confirmed*.
+**Step 3 · Other software** — type a product and the field autocompletes against **MITRE
+Explorer**, showing each version's known-CVE count. Version is required, so we match the exact
+CVE set rather than guessing.
 
-![Other software step](docs/screenshots/sr-4-other.png)
+![Software autocomplete](docs/screenshots/04-autocomplete.png)
 
-**5 · Checking** — progress grouped by source: Website (`nuclei-router`/`nuclei-module` →
-MITRE Explorer), Server packages (Trivy report → MITRE Explorer `/packages`), Other software
-(version-matched). Gentle, rate-limited, read-only.
+**Step 4 · Review & run** — a plain summary of everything before anything runs.
 
-![Checking step](docs/screenshots/sr-5-checking.png)
+![Review & run](docs/screenshots/05-step4-summary.png)
 
-**6 · Your report** — one **source-tagged** report with the honest confidence model:
-**Confirmed** (Website / Server) · **Advisory — verify** (Other) · **No issue found**. Plain
-language, plain-English severity, a clear fix.
+**Live scan** — the report streams in and auto-refreshes; no dead-end links while it works.
 
-![Report step](docs/screenshots/sr-6-report.png)
+![Scanning](docs/screenshots/09-report-scanning.png)
+
+**The report** — one **source-tagged** report, findings grouped **Fix now / Plan / Check /
+Clear**, each in plain language with a concrete fix. Confidence is honest: **Confirmed**
+(Website / Server) · **Advisory — verify** (Other) · **No issue found**.
+
+![Full report](docs/screenshots/06-report-full.png)
+
+**A finding in detail** — CVE summary, exploitation likelihood (EPSS / CISA KEV), the affected
+package, and a link straight to MITRE Explorer.
+
+![Finding detail](docs/screenshots/08-finding-detail.png)
 
 ## CVE data — the mitre-explorer API
 
@@ -331,7 +338,22 @@ Scoped to be presentable within a few days — Applications + Web tracks only.
 
 ## Getting started
 
-_Setup instructions will be added once the stack is chosen._
+The app lives in [`web/`](web) (Next.js + PostgreSQL). The website tier needs a running
+**Artemis** (Docker Compose); **Trivy** is not installed here — it runs on the server you're
+checking and uploads its JSON report.
+
+```bash
+cd web
+npm install
+# create web/.env.local with:
+#   DATABASE_URL=postgres://…@localhost:5433/safetyroutes
+#   ARTEMIS_API_URL=http://localhost:5001
+#   ARTEMIS_API_TOKEN=…
+#   MITRE_BASE_URL=https://mitre-explorer.org
+npm run db:migrate     # apply web/db/schema.sql (idempotent)
+npm run db:seed        # optional — sample report at /demo
+npm run dev            # http://localhost:3000
+```
 
 ## Responsible use
 

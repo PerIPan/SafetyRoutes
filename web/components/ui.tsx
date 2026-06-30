@@ -65,7 +65,7 @@ export function SourceChip({ source }: { source: FindingSource }) {
 
 const PILL: Record<FindingConfidence, { label: string; bg: string; fg: string }> = {
   confirmed: { label: "CONFIRMED", bg: "#F8E7E2", fg: "#C0492E" },
-  advisory: { label: "ADVISORY — CHECK", bg: "#FBF1E0", fg: "#A6690F" },
+  advisory: { label: "NEEDS A QUICK CHECK", bg: "#FBF1E0", fg: "#A6690F" },
   no_issue: { label: "NO ISSUE", bg: "#E3F1EB", fg: "#1F7A5A" },
 };
 
