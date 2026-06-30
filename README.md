@@ -82,18 +82,52 @@ built and maintained by [CERT Polska](https://cert.pl/) (CERT PL).
   and other web security issues), with a web UI for managing and viewing scans.
 - **Extensible:** a modular architecture allows custom modules, which is how we intend
   to extend it for SafetyRoutes' use cases.
-- **Built-in CVE checks & fingerprinting:** Artemis bundles
-  [**Nuclei**](https://github.com/projectdiscovery/nuclei) as **two cooperating modules**
-  (both must be enabled): `nuclei-router` works out which templates fit the site, then
-  `nuclei-module` runs the `nuclei` tool against it — a curated, high-severity subset, not
-  every template. Artemis also fingerprints the software a site runs, so we rely on **one**
-  engine rather than running a second scanner.
+- **Targeted CVE checks (`nuclei -as`):** rather than run
+  [**Nuclei**](https://github.com/projectdiscovery/nuclei)'s full **13,320-template** library
+  (slow, and it times out on CDN/PaaS hosts), we run it in **automatic-scan** mode — fingerprint
+  the site's stack (wappalyzer) and run only the templates that match it (tens, not thousands).
+  This runs as a decoupled step in the app, not as an Artemis module — see
+  *"What we scan — and what we don't"* below.
 - **Deployment:** runs via Docker and Docker Compose (development mode via
   `./scripts/start --mode=development`).
 - **License:** BSD-3-Clause.
 
 > **Note:** Artemis is experimental software under active development — use at your own
 > risk, and only against systems you are authorized to scan.
+
+## What we scan — and what we don't
+
+Artemis ships **34 toggleable modules**. SafetyRoutes enables a **deliberately small,
+LCO-focused** subset — the checks that matter for a Local Community Organization — plus a
+targeted vulnerability scan. The depth selector adds breadth, not intrusiveness.
+
+**What we keep:**
+
+| Check | Artemis module | Depth | Why it matters to an LCO |
+|---|---|---|---|
+| Open ports | `port_scanner` | all | Attack surface |
+| Exposed `.git` / source control | `vcs` | all | Leaks source code & secrets |
+| Exposed folder listings | `directory_index` | all | Accidental file exposure |
+| `robots.txt` disclosure | `robots` | all | Information leakage |
+| HTTP security headers | `humble` | all | Easy, high-value hardening |
+| Email impersonation (SPF/DMARC) | `mail_dns_scanner` | Standard + | Charities get spoofed |
+| Domain expiry | `domain_expiration_scanner` | Standard + | A forgotten renewal loses the domain |
+| Deeper DNS / takeover risk | `dns_scanner`, `dangling_dns_detector` | Thorough | Zone transfer, dangling records |
+| Known vulnerabilities | **`nuclei -as`** (decoupled — `web/lib/nuclei-scan.ts`) | all | Fingerprints the site, runs only matching templates |
+
+**What we leave out — and why:**
+
+- **Brute-forcers** — `ftp_bruter`, `ssh_bruter`, `mysql_bruter`, `postgresql_bruter`,
+  `wordpress_bruter`, `admin_panel_login_bruter`, `bruter`. Slow, noisy, DoS-prone, and they
+  need exposed SSH/FTP/DB ports a charity website doesn't have.
+- **Active injectors** — `sql_injection_detector`, `lfi_detector`, `orm_injection_detector`,
+  `api_scanner`. Redundant here — the `nuclei -as` step covers web vulnerabilities more cleanly.
+- **Artemis's bundled Nuclei** — `nuclei-module` / `nuclei-router`. Running its full
+  **13,320-template** library is slow and times out on CDN/PaaS hosts; replaced by the targeted
+  `-as` step above.
+
+Because Artemis treats `enabled_modules` as a **whitelist**, everything not in the table is off
+by default — so the brute-forcers and injectors never run.
 
 ## Guided wizard
 

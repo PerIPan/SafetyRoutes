@@ -40,19 +40,23 @@ export const SCAN_PROFILE_META: ScanProfileMeta[] = [
 // Plain-language capability matrix for the help modal (which depth checks what).
 export const SCAN_PROFILE_CHECKS: { label: string; in: Record<ScanProfileKey, boolean> }[] = [
   {
-    label: 'Known weaknesses & outdated web apps',
+    label: 'Known vulnerabilities (outdated software)',
     in: { essentials: true, standard: true, thorough: true },
   },
   {
     label: 'Accidentally-exposed files & folders',
     in: { essentials: true, standard: true, thorough: true },
   },
-  { label: 'Open ports on your server', in: { essentials: true, standard: true, thorough: true } },
-  { label: 'Email & DNS set up safely', in: { essentials: false, standard: true, thorough: true } },
   {
-    label: 'DNS & domain-expiry records',
-    in: { essentials: false, standard: false, thorough: true },
+    label: 'Open ports & security headers',
+    in: { essentials: true, standard: true, thorough: true },
   },
+  {
+    label: 'Email impersonation (SPF / DMARC)',
+    in: { essentials: false, standard: true, thorough: true },
+  },
+  { label: 'Domain-expiry warning', in: { essentials: false, standard: true, thorough: true } },
+  { label: 'Deeper DNS checks', in: { essentials: false, standard: false, thorough: true } },
 ];
 
 export const DEFAULT_SCAN_PROFILE: ScanProfileKey = 'standard';

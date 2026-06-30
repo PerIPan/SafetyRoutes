@@ -20,22 +20,31 @@ import type { ScanProfileKey } from './scan-profiles';
 // port_scanner is the ENTRY POINT: it discovers the open HTTP service that webapp_identifier ->
 // nuclei-router -> nuclei-module (and vcs/directory_index/robots) then scan — so it must be in
 // every profile, or the web vulnerability scan can never run.
+// LCO-focused module set: only safe, low-impact, high-value checks for Local Community
+// Organizations. We deliberately EXCLUDE Artemis's brute-forcers (ftp/ssh/mysql/postgresql/
+// wordpress/admin-panel/bruter) and active injectors (sql/lfi/orm injection, api fuzzing) —
+// those guess credentials or send attack payloads, which violates good-faith, low-impact
+// scanning. Artemis's bundled Nuclei (nuclei-module/router) is also out: the targeted vuln scan
+// runs as a decoupled `nuclei -as` step (see lib/nuclei-scan.ts) that only runs templates
+// matching the site's fingerprint. See the README "What we scan — and what we don't".
 const CORE_WEB = [
-  'port_scanner',    // finds the open HTTP service + open ports
-  'vcs',             // exposed .git / source control
+  'port_scanner',    // open ports / attack surface
+  'vcs',             // exposed .git / source-control leak
   'directory_index', // exposed directory listings
   'robots',          // robots.txt disclosure
-  // NOTE: nuclei (nuclei-router/nuclei-module) is intentionally OUT of the web chain for the
-  // demo — it's slow, times out on CDN/PaaS hosts, and needs exact exploited software to fire.
-  // The reliable modules above + mail/DNS/domain-expiry (added per profile below) give fast,
-  // meaningful findings. The targeted vuln scan is being reworked to `nuclei -as` (fingerprint →
-  // matching templates) as a separate step.
+  'humble',          // HTTP security headers (missing headers = an easy hardening win)
 ];
 
 export const MODULE_SETS: Record<ScanProfileKey, string[]> = {
   essentials: CORE_WEB,
-  standard: [...CORE_WEB, 'mail_dns_scanner'],
-  thorough: [...CORE_WEB, 'mail_dns_scanner', 'dns_scanner', 'domain_expiration_scanner'],
+  standard: [...CORE_WEB, 'mail_dns_scanner', 'domain_expiration_scanner'],
+  thorough: [
+    ...CORE_WEB,
+    'mail_dns_scanner',
+    'domain_expiration_scanner',
+    'dns_scanner',
+    'dangling_dns_detector',
+  ],
 };
 
 // Back-compat default profile (the original fixed LCO set == Thorough).
