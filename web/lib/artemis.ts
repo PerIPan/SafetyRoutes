@@ -101,9 +101,6 @@ export async function startScan(
   domain: string,
   tag: string,
   modules: string[] = LCO_MODULES,
-  // nuclei severity_threshold (Artemis per-scan runtime config). Lower thresholds run fewer
-  // templates → faster scans. Omitted ⇒ Artemis's global default (high_and_above).
-  severity?: string | null,
 ): Promise<string | null> {
   const allowed = await disableableModules();
   // Refuse to scan if we can't confirm the module set — better to fail than fall back to
@@ -112,12 +109,6 @@ export async function startScan(
   const enabled = modules.filter((m) => allowed.includes(m));
   const payload: Record<string, unknown> = { targets: [domain], tag };
   if (enabled.length) payload.enabled_modules = enabled;
-  // Per-scan nuclei tuning. Key is "nuclei" (the API validates against RUNTIME_CONFIGURATION_CLASSES
-  // which is keyed "nuclei"; the module reads it via a "nuclei" fallback). Read at task time — no
-  // Artemis restart needed.
-  if (severity) {
-    payload.module_runtime_configurations = { nuclei: { severity_threshold: severity } };
-  }
 
   const body = await api<unknown>('/api/add', {
     method: 'POST',
