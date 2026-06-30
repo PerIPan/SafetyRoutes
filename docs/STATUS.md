@@ -6,6 +6,41 @@ A real **authe.org website scan via Artemis is in progress** — check its repor
 
 ---
 
+## Post-review update (both agent reviews done + fixes applied)
+
+Two agents reviewed the code (security + correctness). **The must-fixes are done; the rest is
+documented below.**
+
+**Fixed tonight (verified — 23 tests pass, build clean):**
+- **Security #1 (CRITICAL): authorization gate.** Added a server-side **allowlist + SSRF guard**
+  (`lib/net-guard.ts`) — `/start` now **403s** any domain not in `SCAN_ALLOWLIST`
+  (your four domains) and refuses private/metadata IPs. Verified: `example.com`→403, `authe.org`→200.
+- **Code #1 (CRITICAL): the wizard never triggered the website scan.** Now it calls `/start`.
+- **Code #2: report was a one-shot render.** Added `ScanLive` — the report **auto-polls** per-source
+  status and refreshes when the async Artemis scan finishes.
+- **Code #7: `satisfiesRange` read a bare version as `==`** (silent false-negatives) → now returns
+  "unknown" (→ Advisory).
+- **Code #5: finding writes are now transactional** (advisory-locked) — no mid-rewrite empty reads.
+- **Code #4: website findings could collide** on the unique key → added a result discriminator.
+- **Code #10: `isDone` used the global Artemis queue** (never empty) → now per-analysis count.
+  *(This is why the first authe.org scan stuck at "running"; a fresh one is running correctly.)*
+- **Code #11: scan aborts** rather than falling back to Artemis's full profile on an API hiccup.
+- **Code #9: positive "no issue" rows** now emitted by all tiers when nothing's found.
+- **Code #3: `/start` errors** now set `source_status=failed` + audit (no more stuck "running").
+
+**Fresh website scan to check this morning:** `/report/0e5436a0-8af5-4c19-9445-743008902024`
+(authe.org, running with the fixed code — the report polls and updates itself).
+
+**Deferred (documented, not blocking the demo on your own domains):**
+- Security: ownership *verification* (DNS-TXT/`.well-known`) beyond the allowlist; per-endpoint
+  auth + rate-limiting; CSP/security headers (`next.config.ts`); move ARTEMIS_API_TOKEN to a
+  secret store + rotate; data-minimization/retention on stored raw Trivy reports.
+- Correctness: pre-release version ordering (`1.0.0-rc1` vs `1.0.0`); fire-and-forget `/start`
+  needs a real worker/queue before any serverless deploy; website→app→CVE enrichment (currently
+  generic Confirmed findings); report groups findings flat (not by source section).
+
+---
+
 ## What works (verified)
 
 - **App runs** at <http://localhost:3000> — landing, 4-step wizard, server-rendered report.
@@ -20,7 +55,7 @@ A real **authe.org website scan via Artemis is in progress** — check its repor
   **:5001** (macOS AirPlay squats :5000, so we remapped). A live scan of **authe.org** was
   accepted and is running end-to-end through SafetyRoutes.
 - **Manual tier** — coded (declared product+version → mitre-explorer Applications → advisory).
-- **Quality:** 26 unit tests pass (`npm test`); production build clean (`npm run build`).
+- **Quality:** 23 unit tests pass (`npm test`); production build clean (`npm run build`).
 - **Enrichment** via live mitre-explorer with a DB cache; degrades gracefully when unavailable.
 
 ## URLs to look at

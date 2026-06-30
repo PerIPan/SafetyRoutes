@@ -68,9 +68,12 @@ export async function startScan(
   modules: string[] = LCO_MODULES,
 ): Promise<string | null> {
   const allowed = await disableableModules();
-  const enabled = allowed ? modules.filter((m) => allowed.includes(m)) : null;
+  // Refuse to scan if we can't confirm the module set — better to fail than fall back to
+  // Artemis's full default profile on a transient API hiccup (security/safety).
+  if (!allowed) return null;
+  const enabled = modules.filter((m) => allowed.includes(m));
   const payload: Record<string, unknown> = { targets: [domain], tag };
-  if (enabled && enabled.length) payload.enabled_modules = enabled;
+  if (enabled.length) payload.enabled_modules = enabled;
 
   const body = await api<unknown>('/api/add', {
     method: 'POST',
@@ -95,9 +98,11 @@ export async function isDone(analysisId: string): Promise<boolean> {
   const a = analyses.find(
     (x) => x && typeof x === 'object' && String((x as { id?: unknown }).id) === analysisId,
   ) as { num_pending_tasks?: number } | undefined;
-  const queued = await api<number | { value?: number }>('/api/num-queued-tasks');
-  const queuedN = typeof queued === 'number' ? queued : (queued?.value ?? 0);
-  return (a?.num_pending_tasks ?? 1) === 0 && queuedN === 0;
+  if (!a) return true; // API reachable but analysis absent → gone/finished (terminal), not pending
+  // Rely on the per-analysis pending count. The global /num-queued-tasks includes unrelated
+  // background tasks (cleanup/autoarchiver/metrics) and would keep us "running" forever.
+  // waitForScan's two-consecutive-zero stabilization handles the last-task race.
+  return (a.num_pending_tasks ?? 0) === 0;
 }
 
 /** Poll until done (two consecutive zero-readings) or timeout. */

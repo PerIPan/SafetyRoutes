@@ -65,6 +65,11 @@ export default function NewScan() {
         });
       }
 
+      // kick off the async website (Artemis) scan — the report polls for its results
+      if (domain.trim()) {
+        await fetch(`/api/scans/${id}/start`, { method: "POST" }).catch(() => {});
+      }
+
       router.push(`/report/${id}`);
     } catch (e) {
       setError((e as Error).message);

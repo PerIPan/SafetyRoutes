@@ -40,7 +40,10 @@ export function satisfiesRange(version: string, range: string): boolean | null {
   for (const p of parts) {
     const m = p.match(/^(>=|<=|>|<|==|=)?\s*(.+)$/);
     if (!m) return null;
-    const op = m[1] || '=';
+    // A bare version with no operator in a range is ambiguous (e.g. "introduced at 1.0"),
+    // NOT an equality test — refuse to guess so the caller falls back to "unknown"/Advisory.
+    if (!m[1]) return null;
+    const op = m[1];
     const c = compareVersions(version, m[2].trim());
     const ok =
       op === '>=' ? c >= 0 :

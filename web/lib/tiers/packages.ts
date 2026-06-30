@@ -65,6 +65,19 @@ export async function runPackagesTier(
     });
   }
 
+  if (out.length === 0) {
+    out.push({
+      scanId, source: 'server', confidence: 'no_issue',
+      title: 'No known-vulnerable packages found on your server',
+      plainExplanation:
+        'We checked the packages in your Trivy report and none have known vulnerabilities.',
+      severity: 'info', severityPlain: plainSeverity('info'),
+      fixText: 'Keep your packages updated.',
+      enrichmentStatus: 'done',
+      idempotencyKey: idemKey(scanId, 'server', 'no_issue'),
+    });
+  }
+
   await replaceSourceFindings(scanId, 'server', out);
   await setSourceStatus(scanId, 'server', { status: 'done', count: out.length });
   return { count: out.length, parsedCount, skippedCount };

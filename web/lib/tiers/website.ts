@@ -33,7 +33,12 @@ function mapResult(scanId: string, r: ArtemisTaskResult): Finding | null {
     module: r.receiver,
     artemisFindingId: r.target ? `${r.receiver}:${r.target}` : r.receiver,
     enrichmentStatus: 'done',
-    idempotencyKey: idemKey(scanId, 'website', r.receiver ?? '', title, r.target ?? ''),
+    // include a result discriminator so distinct findings with the same module/target/title
+    // (e.g. several Nuclei hits) don't collide on the unique key and get dropped.
+    idempotencyKey: idemKey(
+      scanId, 'website', r.receiver ?? '', title, r.target ?? '',
+      JSON.stringify(r.result ?? '').slice(0, 200),
+    ),
   };
 }
 
@@ -62,6 +67,20 @@ export async function runWebsiteTier(
   const outcome = await waitForScan(analysisId); // 'done' | 'timed_out'
   const raw = await fetchResults(analysisId);
   const findings = raw.map((r) => mapResult(scanId, r)).filter((f): f is Finding => f !== null);
+
+  // positive "checked, looking good" row when a completed scan found nothing
+  if (findings.length === 0 && outcome === 'done') {
+    findings.push({
+      scanId, source: 'website', confidence: 'no_issue',
+      title: `We checked ${domain} and found no obvious issues`,
+      plainExplanation:
+        'No exposed files, outdated apps, or known issues were detected on the public website.',
+      severity: 'info', severityPlain: plainSeverity('info'),
+      fixText: 'Nothing to do here.',
+      module: 'artemis', enrichmentStatus: 'done',
+      idempotencyKey: idemKey(scanId, 'website', 'no_issue'),
+    });
+  }
 
   await replaceSourceFindings(scanId, 'website', findings);
   await setSourceStatus(scanId, 'website', { status: outcome, count: findings.length });

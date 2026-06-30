@@ -35,6 +35,10 @@ describe('satisfiesRange', () => {
   it('returns null for an unparseable range', () => {
     expect(satisfiesRange('1.0', '')).toBeNull();
   });
+  it('returns null for a bare version with no operator (ambiguous, not equality)', () => {
+    expect(satisfiesRange('5.0', '1.0')).toBeNull();
+    expect(satisfiesRange('1.0', '1.0')).toBeNull();
+  });
 });
 
 describe('isVersionAffected', () => {

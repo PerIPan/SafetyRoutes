@@ -4,6 +4,7 @@ import { getScan } from "@/lib/scans";
 import { getFindings } from "@/lib/findings";
 import { buildReport } from "@/lib/report";
 import { Brand, SourceChip, ConfidencePill } from "@/components/ui";
+import { ScanLive } from "@/components/scan-live";
 import type { Finding } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,8 @@ export default async function ReportPage({
       <h1 className="mb-6 font-display text-[34px] font-semibold leading-tight tracking-tight text-ink">
         Here&apos;s what we found.
       </h1>
+
+      <ScanLive scanId={id} initial={scan.sourceStatus} />
 
       <div className="mb-6 flex flex-wrap gap-3">
         <SummaryCard n={summary.confirmed} label="Confirmed — fix these" color="#C0492E" />

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { query } from './db';
+import type { PoolClient } from 'pg';
+import { pool, query } from './db';
 import type { Finding, FindingSource } from './types';
 
 /** Deterministic idempotency key so re-ingest doesn't duplicate findings. */
@@ -33,8 +34,8 @@ function rowToFinding(r: Row): Finding {
   };
 }
 
-async function insertFinding(f: Finding): Promise<void> {
-  await query(
+async function insertFinding(client: PoolClient, f: Finding): Promise<void> {
+  await client.query(
     `INSERT INTO findings
        (scan_id, source, confidence, title, plain_explanation, severity, severity_plain,
         fix_text, cve_id, artemis_finding_id, module, trivy_upload_id, purl, package_name,
@@ -52,14 +53,27 @@ async function insertFinding(f: Finding): Promise<void> {
   );
 }
 
-/** Supersede (replace) all findings for a scan+source, then insert the new batch. */
+/** Supersede (replace) all findings for a scan+source atomically, so a concurrent report
+ *  read never sees the table mid-rewrite. */
 export async function replaceSourceFindings(
   scanId: string,
   source: FindingSource,
   findings: Finding[],
 ): Promise<void> {
-  await query(`DELETE FROM findings WHERE scan_id = $1 AND source = $2`, [scanId, source]);
-  for (const f of findings) await insertFinding(f);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // serialize concurrent re-ingest for the same scan
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${scanId}:${source}`]);
+    await client.query(`DELETE FROM findings WHERE scan_id = $1 AND source = $2`, [scanId, source]);
+    for (const f of findings) await insertFinding(client, f);
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getFindings(scanId: string): Promise<Finding[]> {

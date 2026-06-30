@@ -41,6 +41,7 @@ export async function runManualTier(
       continue;
     }
 
+    const before = out.length;
     for (const c of (app.cves ?? []).slice(0, MAX_CVES_PER_PRODUCT)) {
       const detail = await getCveDetail(c.cveId);
       let verdict: ReturnType<typeof isVersionAffected> = 'unknown';
@@ -70,6 +71,17 @@ export async function runManualTier(
         declaredSoftwareId: item.id ?? null,
         enrichmentStatus: detail ? 'done' : 'unavailable',
         idempotencyKey: idemKey(scanId, 'other', item.product, item.version, c.cveId),
+      });
+    }
+    if (out.length === before) {
+      out.push({
+        scanId, source: 'other', confidence: 'no_issue',
+        title: `${app.vendor} ${app.product} ${item.version} — no known issues found`,
+        plainExplanation: 'We checked this product and version against the database and found nothing.',
+        severity: 'info', severityPlain: plainSeverity('info'),
+        fixText: 'Keep it updated.',
+        declaredSoftwareId: item.id ?? null, enrichmentStatus: 'done',
+        idempotencyKey: idemKey(scanId, 'other', item.product, item.version, 'no_issue'),
       });
     }
   }
