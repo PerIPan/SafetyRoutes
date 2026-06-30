@@ -4,53 +4,124 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brand } from "@/components/ui";
 import { DepthHelp } from "@/components/depth-help";
+import { ServerStep } from "@/components/server-step";
 import { SCAN_PROFILE_META } from "@/lib/scan-profiles";
 
-type SoftwareRow = { vendor: string; product: string; version: string };
+type SoftwareRow = { id: string; vendor: string; product: string; version: string };
 type AppSuggestion = { vendor: string; product: string; normalized: string; cveCount: number | null };
+type StepKey = "select" | "website" | "software" | "server" | "run";
+type Tier = "website" | "software" | "server";
 
-const STEPS = ["Permission & site", "Server packages", "Other software", "Run the check"];
-// Scan-depth options (labels/blurbs) come from the shared, client-safe lib/scan-profiles.ts
-// (SCAN_PROFILE_META) — same source the help modal and the server module mapping use.
+// The bundled deliberately-vulnerable test app — a container on the scanner's Docker network
+// (see lib/net-guard.ts INTERNAL_SCAN_HOSTS + lib/nuclei-scan.ts).
+const DVWA_HOST = "dvwa";
+
+const STEP_LABEL: Record<StepKey, string> = {
+  select: "What to check",
+  website: "Website",
+  software: "Other software",
+  server: "Server packages",
+  run: "Run the check",
+};
+
+const OPTIONS: { key: Tier; icon: string; title: string; blurb: string }[] = [
+  {
+    key: "website",
+    icon: "🌐",
+    title: "Your website",
+    blurb:
+      "We scan a site you run for known vulnerabilities, exposed files, and missing security basics.",
+  },
+  {
+    key: "software",
+    icon: "💻",
+    title: "Other software",
+    blurb:
+      "List desktop or office software you use — we match each against known issues to check. No scanning needed.",
+  },
+  {
+    key: "server",
+    icon: "📦",
+    title: "Server packages",
+    blurb:
+      "Check the software installed on a server you own. A small collector runs the scan there and sends back only the report.",
+  },
+];
 
 export default function NewScan() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [selected, setSelected] = useState<Record<Tier, boolean>>({
+    website: false,
+    software: false,
+    server: false,
+  });
+
   const [domain, setDomain] = useState("");
+  const [useDvwa, setUseDvwa] = useState(false);
   const [consentBy, setConsentBy] = useState("");
   const [consent, setConsent] = useState(false);
   const [profile, setProfile] = useState("standard");
   const [helpOpen, setHelpOpen] = useState(false);
-  const [trivyName, setTrivyName] = useState<string | null>(null);
-  const [trivyText, setTrivyText] = useState<string | null>(null);
+
+  // Stable row ids (NOT array index) so React reconciles correctly across add/remove and the
+  // autocomplete never binds to the wrong row. Deterministic seed avoids SSR/hydration mismatch.
+  const rowSeq = useRef(1);
+  const newRowId = () => `row-${rowSeq.current++}`;
   const [rows, setRows] = useState<SoftwareRow[]>([
-    { vendor: "", product: "", version: "" },
+    { id: "row-0", vendor: "", product: "", version: "" },
   ]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [acItems, setAcItems] = useState<AppSuggestion[]>([]);
-  const [acRow, setAcRow] = useState<number | null>(null);
-  const [acHi, setAcHi] = useState(-1); // keyboard-highlighted suggestion index
+  const [acRow, setAcRow] = useState<string | null>(null); // open dropdown's row id
+  const [acHi, setAcHi] = useState(-1);
   const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canStart = domain.trim().length > 0 && consent;
-  // Version is required for any software the user lists — without it we can't match the exact CVE
-  // set (only a vague vendor/product guess). A row with a product but no version blocks Continue.
-  const softwareIncomplete = rows.some((r) => r.product.trim() && !r.version.trim());
+  const [trivyText, setTrivyText] = useState<string | null>(null);
+  const [trivyName, setTrivyName] = useState<string | null>(null);
 
-  async function onTrivyFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setTrivyName(file.name);
-    setTrivyText(await file.text());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Dynamic step order: selection first, then the chosen tiers (website → software → server LAST),
+  // then run. Selection is only editable on the first step, so `step` never dangles.
+  const stepKeys: StepKey[] = [
+    "select",
+    ...(selected.website ? (["website"] as StepKey[]) : []),
+    ...(selected.software ? (["software"] as StepKey[]) : []),
+    ...(selected.server ? (["server"] as StepKey[]) : []),
+    "run",
+  ];
+  const cur = stepKeys[step];
+  const isLast = step === stepKeys.length - 1;
+
+  const anySelected = selected.website || selected.software || selected.server;
+  const websiteReady = useDvwa || domain.trim().length > 0;
+  // A row "counts" once it has a product; such a row then REQUIRES a version. Advancing the software
+  // step needs at least one complete row AND no product-without-version (so empty rows can't silently
+  // skip the step, and a lone first row is accepted on its own).
+  const softwareRows = rows.filter((r) => r.product.trim());
+  const softwareIncomplete = softwareRows.some((r) => !r.version.trim());
+  const softwareHasData = softwareRows.length > 0;
+  const canAdvance =
+    cur === "select"
+      ? anySelected
+      : cur === "website"
+        ? websiteReady && (useDvwa || consent)
+        : cur === "software"
+          ? softwareHasData && !softwareIncomplete
+          : true;
+
+  function toggle(t: Tier) {
+    setSelected((s) => ({ ...s, [t]: !s[t] }));
+    if (step > 0) setStep(0); // selection is only meant to change on the first step
   }
 
-  function setRow(i: number, patch: Partial<SoftwareRow>) {
-    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  function setRow(id: string, patch: Partial<SoftwareRow>) {
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
-  function onProductType(i: number, value: string) {
-    setRow(i, { product: value });
-    setAcRow(i);
+  function onProductType(id: string, value: string) {
+    setRow(id, { product: value });
+    setAcRow(id);
     setAcHi(-1);
     if (acTimer.current) clearTimeout(acTimer.current);
     if (value.trim().length < 2) {
@@ -64,8 +135,8 @@ export default function NewScan() {
       setAcItems(r.items ?? []);
     }, 250);
   }
-  function pickSuggestion(i: number, s: AppSuggestion) {
-    setRow(i, { vendor: s.vendor, product: s.product });
+  function pickSuggestion(id: string, s: AppSuggestion) {
+    setRow(id, { vendor: s.vendor, product: s.product });
     setAcItems([]);
     setAcRow(null);
     setAcHi(-1);
@@ -75,39 +146,45 @@ export default function NewScan() {
     setBusy(true);
     setError(null);
     try {
+      const domainVal = selected.website ? (useDvwa ? DVWA_HOST : domain.trim()) : null;
       const scanRes = await fetch("/api/scans", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          domain: domain.trim(),
+          domain: domainVal,
           consentBy: consentBy.trim() || null,
           ownershipVerified: true,
-          ownershipMethod: "owner-allowlist",
+          ownershipMethod: useDvwa ? "internal-test-target" : "owner-allowlist",
           profile,
         }),
       });
       const { id } = await scanRes.json();
 
-      if (trivyText) {
-        const up = await fetch(`/api/scans/${id}/trivy-upload?filename=${encodeURIComponent(trivyName ?? "report.json")}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: trivyText,
-        });
-        if (!up.ok) throw new Error((await up.json()).error ?? "Trivy upload failed");
+      if (selected.software) {
+        const software = rows.filter((r) => r.product.trim() && r.version.trim());
+        if (software.length) {
+          await fetch(`/api/scans/${id}/declared-software`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ items: software }),
+          });
+        }
       }
 
-      const software = rows.filter((r) => r.product.trim() && r.version.trim());
-      if (software.length) {
-        await fetch(`/api/scans/${id}/declared-software`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ items: software }),
-        });
+      if (selected.server) {
+        if (trivyText) {
+          const up = await fetch(
+            `/api/scans/${id}/trivy-upload?filename=${encodeURIComponent(trivyName ?? "report.json")}`,
+            { method: "POST", headers: { "content-type": "application/json" }, body: trivyText },
+          );
+          if (!up.ok) throw new Error((await up.json()).error ?? "Trivy upload failed");
+        } else {
+          // adopt the report the collector already pushed to the inbox (no-op if none waiting)
+          await fetch(`/api/scans/${id}/adopt-server-report`, { method: "POST" }).catch(() => {});
+        }
       }
 
-      // kick off the async website (Artemis) scan — the report polls for its results
-      if (domain.trim()) {
+      if (selected.website && domainVal) {
         await fetch(`/api/scans/${id}/start`, { method: "POST" }).catch(() => {});
       }
 
@@ -124,8 +201,8 @@ export default function NewScan() {
       <aside className="flex flex-col bg-ink px-6 py-8 text-[#EAF2F1]">
         <Brand onDark />
         <ol className="mt-9 flex-1 space-y-1">
-          {STEPS.map((label, i) => (
-            <li key={label} className="flex items-start gap-3.5 py-2.5">
+          {stepKeys.map((key, i) => (
+            <li key={key} className="flex items-start gap-3.5 py-2.5">
               <span
                 className={`mt-0.5 grid h-5 w-5 place-items-center rounded-full border-2 text-[11px] font-bold ${
                   i < step
@@ -144,7 +221,7 @@ export default function NewScan() {
                 <div
                   className={`text-[14px] ${i === step ? "font-semibold text-white" : "text-[#A7C2C4]"}`}
                 >
-                  {label}
+                  {STEP_LABEL[key]}
                 </div>
               </div>
             </li>
@@ -158,46 +235,135 @@ export default function NewScan() {
       {/* main */}
       <main className="flex flex-col px-12 py-10">
         <div className="font-mono text-[12px] text-muted">
-          Step {step + 1} of {STEPS.length}
+          Step {step + 1} of {stepKeys.length}
         </div>
 
-        {step === 0 && (
+        {cur === "select" && (
           <Section
-            eyebrow="Permission & site"
-            title="Let's check your organization."
-            lede="Enter the website we should check. The website scan is read-only and only ever runs against sites you're authorized to test."
+            eyebrow="What to check"
+            title="What would you like to check?"
+            lede="Pick one or more. Each one is optional — choose what fits your organization, and we'll merge everything into a single plain-language report."
           >
-            <Field label="Your website address">
-              <div className="flex items-center gap-2 rounded-xl border-2 border-route bg-[#FBFDFC] px-4 py-3 shadow-[0_0_0_4px_rgba(14,156,165,0.14)]">
-                <span className="font-mono text-[13px] text-muted">https://</span>
+            <div className="grid max-w-[680px] gap-3">
+              {OPTIONS.map((o) => {
+                const on = selected[o.key];
+                return (
+                  <button
+                    key={o.key}
+                    type="button"
+                    onClick={() => toggle(o.key)}
+                    aria-pressed={on}
+                    className={`flex items-start gap-4 rounded-2xl border-[1.5px] px-5 py-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-route focus-visible:ring-offset-2 ${
+                      on ? "border-route bg-[#F1FAFA]" : "border-line bg-[#FBFDFC] hover:border-route/50"
+                    }`}
+                  >
+                    <span className="text-[24px] leading-none">{o.icon}</span>
+                    <span className="flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-[15px] font-semibold text-ink">{o.title}</span>
+                        {o.key === "server" && (
+                          <span className="rounded bg-[#E2F1F0] px-1.5 py-0.5 font-mono text-[10px] text-route-deep">
+                            auto-collect
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft">
+                        {o.blurb}
+                      </span>
+                    </span>
+                    <span
+                      className={`mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 ${
+                        on ? "border-route bg-route text-white" : "border-line"
+                      }`}
+                    >
+                      {on && <span className="text-[12px] leading-none">✓</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {!anySelected && (
+              <p className="mt-4 text-[13px] text-muted">Select at least one to continue.</p>
+            )}
+          </Section>
+        )}
+
+        {cur === "website" && (
+          <Section
+            eyebrow="Website"
+            title="Which website should we check?"
+            lede="The website scan is read-only and only ever runs against sites you're authorized to test."
+          >
+            <div className="mb-4 max-w-[560px]">
+              <label className="mb-1.5 block text-[13px] font-semibold text-ink">
+                Your website address
+              </label>
+              <div
+                className={`flex items-center gap-2 rounded-xl border-2 px-4 py-3 ${
+                  useDvwa
+                    ? "border-line bg-[#F1F3F2] opacity-60"
+                    : "border-route bg-[#FBFDFC] shadow-[0_0_0_4px_rgba(14,156,165,0.14)]"
+                }`}
+              >
+                {!useDvwa && <span className="font-mono text-[13px] text-muted">https://</span>}
                 <input
-                  value={domain}
+                  value={useDvwa ? "dvwa  (built-in test app)" : domain}
                   onChange={(e) => setDomain(e.target.value)}
+                  disabled={useDvwa}
                   placeholder="yourcharity.org"
-                  className="w-full bg-transparent text-[15px] text-ink outline-none"
+                  className="w-full bg-transparent text-[15px] text-ink outline-none disabled:cursor-not-allowed"
                 />
               </div>
-            </Field>
-            <Field label="Your name (optional — recorded with consent)">
-              <input
-                value={consentBy}
-                onChange={(e) => setConsentBy(e.target.value)}
-                placeholder="Jane Doe"
-                className="w-full max-w-[440px] rounded-xl border-[1.5px] border-line bg-[#FBFDFC] px-4 py-3 text-[15px] text-ink outline-none"
-              />
-            </Field>
-            <label className="mt-2 flex max-w-[470px] items-start gap-3">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-1 h-5 w-5 accent-route"
-              />
-              <span className="text-[14px] leading-snug text-ink-soft">
-                <b className="text-ink">I&apos;m authorized to check this organization.</b> I own
-                it or have written permission to test it.
-              </span>
-            </label>
+              <label className="mt-2.5 flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={useDvwa}
+                  onChange={(e) => setUseDvwa(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-route"
+                />
+                <span className="text-[13px] leading-snug text-ink-soft">
+                  Use the built-in <b className="text-ink">DVWA</b> test site — a deliberately-vulnerable
+                  demo app bundled with the scanner. Great for seeing what a real finding looks like.
+                  <a
+                    href="https://github.com/digininja/DVWA"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 font-mono text-[11px] text-route-deep underline"
+                  >
+                    what&apos;s this?
+                  </a>
+                </span>
+              </label>
+            </div>
+
+            {!useDvwa ? (
+              <>
+                <Field label="Your name (optional — recorded with consent)">
+                  <input
+                    value={consentBy}
+                    onChange={(e) => setConsentBy(e.target.value)}
+                    placeholder="Jane Doe"
+                    className="w-full max-w-[440px] rounded-xl border-[1.5px] border-line bg-[#FBFDFC] px-4 py-3 text-[15px] text-ink outline-none"
+                  />
+                </Field>
+                <label className="mt-2 flex max-w-[470px] items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(e) => setConsent(e.target.checked)}
+                    className="mt-1 h-5 w-5 accent-route"
+                  />
+                  <span className="text-[14px] leading-snug text-ink-soft">
+                    <b className="text-ink">I&apos;m authorized to check this organization.</b> I own
+                    it or have written permission to test it.
+                  </span>
+                </label>
+              </>
+            ) : (
+              <p className="max-w-[470px] rounded-xl border border-route/30 bg-[#F1FAFA] px-4 py-3 text-[13px] text-ink-soft">
+                ✓ Authorized — this is the scanner&apos;s own bundled test target, safe to scan.
+              </p>
+            )}
 
             <div className="mt-7 max-w-[560px]">
               <div className="mb-2 flex items-center gap-2.5">
@@ -223,9 +389,7 @@ export default function NewScan() {
                       onClick={() => setProfile(d.key)}
                       aria-pressed={on}
                       className={`flex items-start gap-3 rounded-xl border-[1.5px] px-4 py-3 text-left transition-colors ${
-                        on
-                          ? "border-route bg-[#F1FAFA]"
-                          : "border-line bg-[#FBFDFC] hover:border-route/50"
+                        on ? "border-route bg-[#F1FAFA]" : "border-line bg-[#FBFDFC] hover:border-route/50"
                       }`}
                     >
                       <span
@@ -254,32 +418,12 @@ export default function NewScan() {
           </Section>
         )}
 
-        {step === 1 && (
-          <Section
-            eyebrow="Server packages · Trivy"
-            title="Run Trivy, then upload the report. (Optional)"
-            lede="On a server you want to check, run the command below and upload the file it produces. No server? Skip this step."
-          >
-            <pre className="max-w-[620px] overflow-x-auto rounded-xl border border-[#21424C] bg-[#10262F] px-4 py-3.5 font-mono text-[12.5px] leading-relaxed text-[#CDE7E6]">
-              trivy fs --scanners vuln --format json --output sr-report.json /
-            </pre>
-            <div className="mt-4 max-w-[620px] rounded-xl border-[1.5px] border-dashed border-[#B7CFCC] bg-[#FAFDFC] px-5 py-5">
-              <input type="file" accept="application/json,.json" onChange={onTrivyFile} />
-              {trivyName && (
-                <div className="mt-3 font-mono text-[12px] text-safe">✓ {trivyName} ready</div>
-              )}
-            </div>
-          </Section>
-        )}
-
-        {step === 2 && (
+        {cur === "software" && (
           <Section
             eyebrow="Other software · manual"
-            title="Software on your computers? (Optional)"
+            title="Software on your computers?"
             lede="List desktop or office software you use. We can't scan it, but we'll match each one against MITRE Explorer and flag the known issues to check — marked Advisory."
           >
-            {/* no overflow-hidden here: it would clip the absolutely-positioned autocomplete
-                dropdown. Corners are kept tidy by rounding the header/last row instead. */}
             <div className="max-w-[680px] rounded-xl border border-line">
               <div className="grid grid-cols-[1.4fr_1fr_0.9fr_36px] gap-3 rounded-t-xl bg-[#F4F6F5] px-4 py-2.5 font-mono text-[11px] uppercase tracking-wide text-muted">
                 <span>Product</span>
@@ -289,20 +433,20 @@ export default function NewScan() {
                 </span>
                 <span />
               </div>
-              {rows.map((r, i) => (
+              {rows.map((r) => (
                 <div
-                  key={i}
+                  key={r.id}
                   className="grid grid-cols-[1.4fr_1fr_0.9fr_36px] items-start gap-3 border-t border-[#EEF2F1] px-4 py-2"
                 >
                   <div className="relative">
                     <input
                       value={r.product}
                       placeholder="Start typing… e.g. Office"
-                      onChange={(e) => onProductType(i, e.target.value)}
-                      onFocus={() => setAcRow(i)}
-                      onBlur={() => setTimeout(() => setAcRow((cur) => (cur === i ? null : cur)), 150)}
+                      onChange={(e) => onProductType(r.id, e.target.value)}
+                      onFocus={() => setAcRow(r.id)}
+                      onBlur={() => setTimeout(() => setAcRow((c) => (c === r.id ? null : c)), 150)}
                       onKeyDown={(e) => {
-                        if (acRow !== i || acItems.length === 0) return;
+                        if (acRow !== r.id || acItems.length === 0) return;
                         if (e.key === "ArrowDown") {
                           e.preventDefault();
                           setAcHi((h) => Math.min(acItems.length - 1, h + 1));
@@ -311,31 +455,33 @@ export default function NewScan() {
                           setAcHi((h) => Math.max(0, h - 1));
                         } else if (e.key === "Enter" && acHi >= 0 && acItems[acHi]) {
                           e.preventDefault();
-                          pickSuggestion(i, acItems[acHi]);
+                          pickSuggestion(r.id, acItems[acHi]);
                         } else if (e.key === "Escape") {
                           setAcItems([]);
                           setAcHi(-1);
                         }
                       }}
                       role="combobox"
-                      aria-expanded={acRow === i && acItems.length > 0}
-                      aria-controls={`ac-${i}`}
+                      aria-expanded={acRow === r.id && acItems.length > 0}
+                      aria-controls={`ac-${r.id}`}
                       aria-autocomplete="list"
                       aria-activedescendant={
-                        acRow === i && acHi >= 0 ? `ac-${i}-${acHi}` : undefined
+                        acRow === r.id && acHi >= 0 ? `ac-${r.id}-${acHi}` : undefined
                       }
                       className="w-full rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
                     />
-                    {acRow === i && acItems.length > 0 && (
+                    {acRow === r.id && acItems.length > 0 && (
                       <ul
-                        id={`ac-${i}`}
+                        id={`ac-${r.id}`}
                         role="listbox"
+                        // keep the product input focused if the user clicks the list chrome (scrollbar)
+                        onMouseDown={(e) => e.preventDefault()}
                         className="absolute z-20 mt-1 max-h-64 w-[340px] overflow-auto rounded-lg border border-line bg-white shadow-xl"
                       >
                         {acItems.map((s, idx) => (
                           <li
                             key={s.normalized}
-                            id={`ac-${i}-${idx}`}
+                            id={`ac-${r.id}-${idx}`}
                             role="option"
                             aria-selected={idx === acHi}
                           >
@@ -345,7 +491,7 @@ export default function NewScan() {
                               onMouseEnter={() => setAcHi(idx)}
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                pickSuggestion(i, s);
+                                pickSuggestion(r.id, s);
                               }}
                               className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] ${
                                 idx === acHi ? "bg-paper" : "hover:bg-paper"
@@ -367,20 +513,20 @@ export default function NewScan() {
                   <input
                     value={r.vendor}
                     placeholder="auto-filled"
-                    onChange={(e) => setRow(i, { vendor: e.target.value })}
+                    onChange={(e) => setRow(r.id, { vendor: e.target.value })}
                     className="rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
                   />
                   <input
                     value={r.version}
                     placeholder="2024"
                     aria-invalid={!!(r.product.trim() && !r.version.trim())}
-                    onChange={(e) => setRow(i, { version: e.target.value })}
+                    onChange={(e) => setRow(r.id, { version: e.target.value })}
                     className={`rounded-md border bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none ${
-                      r.product.trim() && !r.version.trim() ? 'border-risk' : 'border-line'
+                      r.product.trim() && !r.version.trim() ? "border-risk" : "border-line"
                     }`}
                   />
                   <button
-                    onClick={() => setRows(rows.filter((_, j) => j !== i))}
+                    onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}
                     className="mt-1.5 text-muted"
                     aria-label="remove"
                   >
@@ -390,7 +536,7 @@ export default function NewScan() {
               ))}
             </div>
             <button
-              onClick={() => setRows([...rows, { vendor: "", product: "", version: "" }])}
+              onClick={() => setRows((rs) => [...rs, { id: newRowId(), vendor: "", product: "", version: "" }])}
               className="mt-3 font-mono text-[12px] font-bold text-route-deep"
             >
               ＋ Add software
@@ -398,27 +544,53 @@ export default function NewScan() {
           </Section>
         )}
 
-        {step === 3 && (
+        {cur === "server" && (
+          <Section
+            eyebrow="Server packages · Trivy"
+            title="Check a server you own"
+            lede="A small collector runs Trivy on your server and pushes the report here on a schedule — so it's usually already waiting. You can also upload a report file instead."
+          >
+            <ServerStep
+              onManualReport={(text, name) => {
+                setTrivyText(text);
+                setTrivyName(name);
+              }}
+              manualName={trivyName}
+            />
+          </Section>
+        )}
+
+        {cur === "run" && (
           <Section
             eyebrow="Run the check"
             title="Ready when you are."
             lede="We'll check what you provided and write a single plain-language report."
           >
             <ul className="max-w-[560px] space-y-2 text-[14px] text-ink-soft">
-              <li>🌐 Website: <b className="text-ink">{domain || "—"}</b></li>
-              <li>
-                🔎 Depth:{" "}
-                <b className="text-ink">
-                  {SCAN_PROFILE_META.find((d) => d.key === profile)?.label ?? "Standard"}
-                </b>
-              </li>
-              <li>📦 Server packages: <b className="text-ink">{trivyName ?? "skipped"}</b></li>
-              <li>
-                💻 Other software:{" "}
-                <b className="text-ink">
-                  {rows.filter((r) => r.product && r.version).length || "none"} item(s)
-                </b>
-              </li>
+              {selected.website && (
+                <li>
+                  🌐 Website:{" "}
+                  <b className="text-ink">{useDvwa ? "DVWA (built-in test app)" : domain || "—"}</b>
+                  <span className="text-muted">
+                    {" "}
+                    · {SCAN_PROFILE_META.find((d) => d.key === profile)?.label ?? "Standard"}
+                  </span>
+                </li>
+              )}
+              {selected.software && (
+                <li>
+                  💻 Other software:{" "}
+                  <b className="text-ink">
+                    {rows.filter((r) => r.product && r.version).length || "none"} item(s)
+                  </b>
+                </li>
+              )}
+              {selected.server && (
+                <li>
+                  📦 Server packages:{" "}
+                  <b className="text-ink">{trivyName ?? "the report your collector pushed"}</b>
+                </li>
+              )}
             </ul>
             {error && <p className="mt-4 max-w-[560px] text-[13px] text-risk">{error}</p>}
           </Section>
@@ -435,20 +607,27 @@ export default function NewScan() {
             </button>
           )}
           <div className="flex flex-1 items-center justify-end gap-3">
-            {step === 0 && !canStart && (
+            {cur === "select" && !anySelected && (
+              <span className="text-[13px] text-muted">Pick at least one check to continue</span>
+            )}
+            {cur === "website" && !canAdvance && (
               <span className="text-[13px] text-muted">
-                Enter a website and tick the authorization box to continue
+                {useDvwa ? "" : "Enter a website and tick the authorization box to continue"}
               </span>
             )}
-            {step === 2 && softwareIncomplete && (
+            {cur === "software" && !softwareHasData && (
+              <span className="text-[13px] text-muted">
+                Add at least one product (with its version) to continue.
+              </span>
+            )}
+            {cur === "software" && softwareIncomplete && (
               <span className="text-[13px] text-risk">
-                Add a version for each software you listed — it’s required to match the right
-                issues (or remove the row).
+                Add a version for each software you listed (or remove the row).
               </span>
             )}
-            {step < STEPS.length - 1 ? (
+            {!isLast ? (
               <button
-                disabled={(step === 0 && !canStart) || (step === 2 && softwareIncomplete)}
+                disabled={!canAdvance}
                 onClick={() => setStep(step + 1)}
                 className="rounded-xl bg-route px-6 py-3 text-[14.5px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
               >
@@ -456,7 +635,7 @@ export default function NewScan() {
               </button>
             ) : (
               <button
-                disabled={busy || !canStart}
+                disabled={busy || !anySelected}
                 onClick={run}
                 className="rounded-xl bg-route px-6 py-3 text-[14.5px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
               >

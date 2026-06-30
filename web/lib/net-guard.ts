@@ -8,6 +8,22 @@ const ALLOWLIST = (process.env.SCAN_ALLOWLIST ?? '')
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
 
+// Bundled internal test targets (e.g. the DVWA container on the scanner's own Docker network). These
+// are deliberately-vulnerable apps WE run for demos; they aren't FQDNs and resolve to private Docker
+// IPs, so the SSRF guard would (correctly) refuse them. Allow these specific hosts — and only these —
+// by design. Set INTERNAL_SCAN_HOSTS='' to disable entirely (e.g. on a deployed instance).
+const INTERNAL_SCAN_HOSTS = new Set(
+  (process.env.INTERNAL_SCAN_HOSTS ?? 'dvwa')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+/** A bundled, intentionally-allowed internal test target (bypasses allowlist + SSRF by design). */
+export function isInternalScanHost(domain: string): boolean {
+  return INTERNAL_SCAN_HOSTS.has(normalizeDomain(domain));
+}
+
 /** Normalize "https://Foo.org/path" → "foo.org". */
 export function normalizeDomain(input: string): string {
   return input.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
@@ -82,6 +98,9 @@ const ALLOW_ANY = process.env.SCAN_ALLOW_ANY === 'true';
 
 /** Combined gate: (allowlist unless opened) + SSRF. Returns ok or a 403-worthy reason. */
 export async function authorizeScan(domain: string): Promise<GuardResult> {
+  // Bundled internal test target (DVWA) — allowed by design; skips allowlist + SSRF (it's our own
+  // deliberately-vulnerable container on the scanner's Docker network).
+  if (isInternalScanHost(domain)) return { ok: true };
   if (!ALLOW_ANY && !domainAllowed(domain)) {
     return { ok: false, reason: 'This domain is not in the scan allowlist (own-sites-only for now).' };
   }

@@ -33,7 +33,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const text = await req.text();
-  if (text.length > MAX_BYTES) {
+  if (Buffer.byteLength(text) > MAX_BYTES) {
     return Response.json({ error: 'Report too large (max 8 MB).' }, { status: 413 });
   }
 
@@ -56,7 +56,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const upload = await queryOne<{ id: string }>(
     `INSERT INTO trivy_uploads (scan_id, filename, raw_json, idempotency_key)
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT (idempotency_key) DO UPDATE SET updated_at = now()
+     ON CONFLICT (scan_id, idempotency_key) DO UPDATE SET updated_at = now()
      RETURNING id`,
     [id, filename, json as object, key],
   );

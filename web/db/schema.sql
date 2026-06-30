@@ -55,9 +55,11 @@ CREATE TABLE IF NOT EXISTS trivy_uploads (
   raw_json        jsonb NOT NULL,
   parsed_count    int,
   skipped_count   int,
-  idempotency_key text UNIQUE,                    -- sha256(raw_json)
+  idempotency_key text,                           -- sha256(raw_json)
   created_at      timestamptz NOT NULL DEFAULT now(),
-  updated_at      timestamptz NOT NULL DEFAULT now()
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  -- per-scan (NOT global) so two scans can adopt the SAME waiting inbox report without cross-linking
+  CONSTRAINT uq_trivy_upload_idem UNIQUE (scan_id, idempotency_key)
 );
 CREATE INDEX IF NOT EXISTS idx_trivy_uploads_scan_id ON trivy_uploads(scan_id);
 
@@ -138,3 +140,33 @@ ALTER TABLE findings ADD COLUMN IF NOT EXISTS is_kev boolean;
 ALTER TABLE findings ADD COLUMN IF NOT EXISTS epss   real;
 ALTER TABLE findings ADD COLUMN IF NOT EXISTS cvss   real;
 CREATE INDEX IF NOT EXISTS idx_findings_scan_kev ON findings(scan_id, is_kev);
+
+-- ── server-packages auto-collect: org ingest token + Trivy inbox ─────────────
+-- Per-org STANDING secret the host-side Trivy collector authenticates with (Authorization: Bearer).
+-- POC: stored plaintext; prod TODO: store sha256(token) + rotation (see docs/trivy-auto-collect-todo.md).
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS ingest_token text;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_org_ingest_token
+  ON organizations(ingest_token) WHERE ingest_token IS NOT NULL;
+
+-- Append-only history of pushed Trivy reports (one row per push). "Latest per (org, source_host)"
+-- is derived by received_at — keeping history lets the wizard show "report changed since last scan"
+-- and lets a poisoned/empty push be detected and rolled back (security review P0-1 / P2-4).
+CREATE TABLE IF NOT EXISTS trivy_inbox (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id       uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  source_host  text,                              -- collector-reported hostname (untrusted; capped/charset-checked)
+  raw_json     jsonb NOT NULL,
+  sha256       text NOT NULL,                     -- integrity + change-detection
+  bytes        int  NOT NULL,
+  result_count int,                               -- Results[].length at ingest (cheap setup-panel display)
+  vuln_count   int,                               -- total vulnerabilities at ingest
+  received_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_trivy_inbox_org ON trivy_inbox(org_id, received_at DESC);
+
+-- Migrate trivy_uploads.idempotency_key from GLOBAL unique → per-scan composite (architect P0-1),
+-- so two scans adopting the SAME inbox report don't cross-link each other's findings.
+ALTER TABLE trivy_uploads DROP CONSTRAINT IF EXISTS trivy_uploads_idempotency_key_key;
+DO $$ BEGIN
+  ALTER TABLE trivy_uploads ADD CONSTRAINT uq_trivy_upload_idem UNIQUE (scan_id, idempotency_key);
+EXCEPTION WHEN duplicate_object THEN null; END $$;

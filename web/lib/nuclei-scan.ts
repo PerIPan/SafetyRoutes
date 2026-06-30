@@ -9,9 +9,17 @@
 // Everything is best-effort and reports an EXPLICIT run status (`ran` / `error` / `timeout` /
 // `unreachable`) so the report never mistakes a failed or timed-out scan for a clean site.
 import { spawn } from 'node:child_process';
+import { isInternalScanHost } from './net-guard';
 
 const DOCKER_BIN = process.env.DOCKER_BIN || '/opt/homebrew/bin/docker';
 const NUCLEI_CONTAINER = process.env.NUCLEI_CONTAINER || 'artemis-karton-nuclei-1';
+
+// Internal scan targets (e.g. the bundled DVWA test app) live on the scanner's Docker network and
+// are NOT resolvable from the host — so the host-side scheme probe would wrongly report them
+// unreachable. They're known-reachable over http from inside the nuclei container, so we skip the
+// probe and scan http://<host> directly. Membership uses net-guard's `isInternalScanHost` so the
+// AUTHORIZATION decision and the TARGET-construction decision share one normalized source of truth
+// (a divergent local copy let an authorized host fall into the un-SSRF-guarded probe path).
 
 export interface NucleiHit {
   templateId: string;
@@ -130,7 +138,9 @@ export async function runNucleiAutomaticScan(
   domain: string,
   { timeoutMs = 200_000 }: { timeoutMs?: number } = {},
 ): Promise<NucleiResult> {
-  const target = await resolveTargetUrl(domain);
+  const target = isInternalScanHost(domain)
+    ? `http://${domain}/` // Docker-internal test target: skip the host probe, scan over http in-container
+    : await resolveTargetUrl(domain);
   if (!target) return { status: 'unreachable', hits: [], scheme: null };
   const scheme: 'https' | 'http' = target.startsWith('https') ? 'https' : 'http';
 

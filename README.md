@@ -218,47 +218,14 @@ flowchart TD
 
 ## The app
 
-Screens from the working build. The wizard collects up to three inputs, then merges everything
-into one source-tagged, plain-language report.
+> _Screenshots are temporarily removed while the wizard is being reworked — a selection-first
+> flow (pick which of the three checks to run), reordered steps (Website → Software → Server
+> last), a built-in test target, and automatic server-report collection. A fresh walkthrough
+> will be added once the interface settles._
 
-**Landing** — what it is, and the three things it checks.
-
-![Landing](docs/screenshots/01-landing.png)
-
-**Step 1 · Permission & site** — consent first; the website address is the real **Artemis**
-target. Choose how deep the website check goes.
-
-![Permission & site](docs/screenshots/02-wizard-step1.png)
-
-**Choosing depth** — a plain-language comparison of Essentials / Standard / Thorough: what each
-one checks and how long it takes.
-
-![Scan depth help](docs/screenshots/03-depth-help.png)
-
-**Step 3 · Other software** — type a product and the field autocompletes against **MITRE
-Explorer**, showing each version's known-CVE count. Version is required, so we match the exact
-CVE set rather than guessing.
-
-![Software autocomplete](docs/screenshots/04-autocomplete.png)
-
-**Step 4 · Review & run** — a plain summary of everything before anything runs.
-
-![Review & run](docs/screenshots/05-step4-summary.png)
-
-**Live scan** — the report streams in and auto-refreshes; no dead-end links while it works.
-
-![Scanning](docs/screenshots/09-report-scanning.png)
-
-**The report** — one **source-tagged** report, findings grouped **Fix now / Plan / Check /
-Clear**, each in plain language with a concrete fix. Confidence is honest: **Confirmed**
-(Website / Server) · **Advisory — verify** (Other) · **No issue found**.
-
-![Full report](docs/screenshots/06-report-full.png)
-
-**A finding in detail** — CVE summary, exploitation likelihood (EPSS / CISA KEV), the affected
-package, and a link straight to MITRE Explorer.
-
-![Finding detail](docs/screenshots/08-finding-detail.png)
+The wizard collects up to three inputs, then merges everything into one source-tagged,
+plain-language report: **Confirmed** (Website / Server) · **Advisory — verify** (Other) ·
+**No issue found**.
 
 ## CVE data — the mitre-explorer API
 
@@ -431,6 +398,56 @@ ARTEMIS_API_TOKEN=<the API_TOKEN from Artemis's .env>
 > container (default `artemis-karton-nuclei-1`), so SafetyRoutes must run on the **same host**
 > with Docker access. If your container name differs, set `NUCLEI_CONTAINER` (and `DOCKER_BIN`
 > if `docker` isn't at `/opt/homebrew/bin/docker`) in `web/.env.local`.
+
+**Built-in test target (DVWA).** The wizard's website step has a "use the built-in DVWA test
+site" checkbox — [DVWA](https://github.com/digininja/DVWA) is a deliberately-vulnerable demo app,
+handy for seeing what a real finding looks like. Run it on the scanner's Docker network so the
+nuclei container can reach it:
+
+```bash
+docker run -d --name dvwa --network artemis_default -p 127.0.0.1:4280:80 ghcr.io/digininja/dvwa:latest
+```
+
+It's reachable in-container at `http://dvwa` (and at `http://127.0.0.1:4280` to view). The scanner
+allows this one internal host by design (`INTERNAL_SCAN_HOSTS`, default `dvwa`) — it bypasses the
+allowlist + SSRF guard, so keep it set to your own test containers only, and unset it on any
+deployed instance.
+
+## Automatic server scanning (Trivy collector)
+
+The **Server packages** check doesn't need anyone to run a command at scan time. A small collector
+runs Trivy on a server you own, on a schedule, and **pushes** the report to SafetyRoutes — so a
+fresh report is already waiting when someone runs the wizard. Execution stays on your host; only the
+JSON report is sent.
+
+**1 — Get your ingest token.** In the wizard's **Server packages** step, open *"Connect your server
+(one-time setup)"* — it shows your organization's token and the exact push command.
+
+**2 — Install the collector once** (on the server, as the user that will run it):
+
+```bash
+sudo mkdir -p /etc/safetyroutes
+printf '%s' 'YOUR-INGEST-TOKEN' | sudo tee /etc/safetyroutes/ingest.token >/dev/null
+sudo chmod 600 /etc/safetyroutes/ingest.token          # the token is a standing secret — keep it 0600
+sudo install -m 755 scripts/sr-trivy-collector.sh /opt/safetyroutes/sr-trivy-collector.sh
+# test it:
+SR_ENDPOINT=http://localhost:3000/api/ingest/trivy /opt/safetyroutes/sr-trivy-collector.sh
+```
+
+The collector uses a native `trivy` if present, else the official Docker image. The token is sent in
+an `Authorization: Bearer` header (never the URL — it would leak via `ps`/logs), and you should use
+**https** for any non-loopback hop.
+
+**3 — Schedule it** (weekly, Mondays 03:00) — `crontab -e`:
+
+```
+0 3 * * 1  SR_ENDPOINT=http://localhost:3000/api/ingest/trivy /opt/safetyroutes/sr-trivy-collector.sh >> /var/log/sr-collector.log 2>&1
+```
+
+The ingest endpoint is fail-closed (valid token required, verified before the body is read),
+caps the upload at 8 MB, rate-limits per token/IP, and stores an append-only history of pushes.
+When a user runs the wizard with **Server packages** selected, it adopts the latest waiting report
+automatically — or they can still upload a `trivy fs` report file by hand.
 
 ## Responsible use
 

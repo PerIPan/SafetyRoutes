@@ -9,6 +9,7 @@ import { websiteTimeoutForProfile } from '../scan-profiles';
 import { plainSeverity } from '../severity';
 import { idemKey, replaceSourceFindings } from '../findings';
 import { setSourceStatus, setScanArtemis } from '../scans';
+import { isInternalScanHost } from '../net-guard';
 import { runNucleiAutomaticScan, isPanelHit, type NucleiResult } from '../nuclei-scan';
 import type { Finding, FindingSeverity } from '../types';
 
@@ -149,7 +150,11 @@ export async function runWebsiteTier(
   modules: string[] = LCO_MODULES,
   profile?: string | null,
 ): Promise<{ count: number; status: string }> {
-  if (!artemisConfigured()) {
+  // Internal test targets (DVWA) skip Artemis entirely: Artemis rejects bare internal hostnames
+  // ("Invalid task: dvwa"), and the meaningful website vuln check for them is the nuclei `-as` scan
+  // below (which reaches http://dvwa in-container). Real sites still require Artemis.
+  const internal = isInternalScanHost(domain);
+  if (!internal && !artemisConfigured()) {
     await setSourceStatus(scanId, 'website', {
       status: 'skipped',
       message: 'Artemis is not configured (set ARTEMIS_API_TOKEN).',
@@ -159,30 +164,35 @@ export async function runWebsiteTier(
 
   // Depth tunes how long we wait for Artemis (the vuln scan is a separate nuclei -as step).
   const timeoutMs = websiteTimeoutForProfile(profile);
-
   await setSourceStatus(scanId, 'website', { status: 'running' });
-  const analysisId = await startScan(domain, `sr-${scanId}`, modules);
-  if (!analysisId) {
-    await setSourceStatus(scanId, 'website', {
-      status: 'failed',
-      message: 'Could not start the Artemis scan.',
-    });
-    return { count: 0, status: 'failed' };
+
+  let analysisId: string | null = null;
+  let outcome: 'done' | 'timed_out' = 'done';
+  const findings: Finding[] = [];
+
+  if (!internal) {
+    analysisId = await startScan(domain, `sr-${scanId}`, modules);
+    if (!analysisId) {
+      await setSourceStatus(scanId, 'website', {
+        status: 'failed',
+        message: 'Could not start the Artemis scan.',
+      });
+      return { count: 0, status: 'failed' };
+    }
+    await setScanArtemis(scanId, analysisId); // persist which analysis backed this scan
+
+    outcome = await waitForScan(analysisId, { timeoutMs }); // 'done' | 'timed_out'
+
+    // Interesting results can land just after pending-tasks hits 0 — on a completed scan, settle,
+    // re-fetch, and union (idempotency keys + the DB unique constraint dedupe overlaps) so late
+    // findings (e.g. a mail/DNS result) aren't silently dropped.
+    let raw = await fetchResults(analysisId);
+    if (outcome === 'done') {
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
+      raw = raw.concat(await fetchResults(analysisId));
+    }
+    for (const f of raw.map((r) => mapResult(scanId, r))) if (f) findings.push(f);
   }
-
-  await setScanArtemis(scanId, analysisId); // C: persist which analysis backed this scan
-
-  const outcome = await waitForScan(analysisId, { timeoutMs }); // 'done' | 'timed_out'
-
-  // A: interesting results can land just after pending-tasks hits 0 — on a completed scan, settle,
-  // re-fetch, and union (idempotency keys + the DB unique constraint dedupe overlaps) so late
-  // findings (e.g. a mail/DNS result) aren't silently dropped.
-  let raw = await fetchResults(analysisId);
-  if (outcome === 'done') {
-    await new Promise((r) => setTimeout(r, SETTLE_MS));
-    raw = raw.concat(await fetchResults(analysisId));
-  }
-  const findings = raw.map((r) => mapResult(scanId, r)).filter((f): f is Finding => f !== null);
 
   // Step 2: targeted nuclei vuln scan — `-as` (fingerprint → matching templates) + a fixed
   // exposures/exposed-panels overlay. Best-effort; the explicit run status gates the "no issues"
@@ -247,8 +257,12 @@ export async function runWebsiteTier(
   // safe when the Artemis web-modules ran AND the nuclei vuln scan genuinely ran — otherwise a
   // failed/timed-out scan would masquerade as a clean site (the most dangerous LCO-facing bug).
   if (findings.length === 0) {
-    const cov = await fetchCoverage(analysisId);
-    const webRan = cov.modules.some((m) => WEB_MODULES.includes(m));
+    // Internal targets have no Artemis coverage to consult — the nuclei run-state IS the gate.
+    const webRan = internal
+      ? nuclei.status === 'ran'
+      : analysisId
+        ? (await fetchCoverage(analysisId)).modules.some((m) => WEB_MODULES.includes(m))
+        : false;
     const trulyClean = outcome === 'done' && webRan && nuclei.status === 'ran';
     findings.push(
       trulyClean
