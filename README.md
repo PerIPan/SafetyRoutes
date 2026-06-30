@@ -2,9 +2,9 @@
 
 A vulnerability scanning tool for identifying security weaknesses across applications and infrastructure.
 
-> **Status:** working build — a guided wizard with the Website (Artemis), Server-packages
-> (Trivy), and Other-software (MITRE Explorer) tiers all functional. Built for the Ransomware
-> Defence Summer Bootcamp.
+> **Status:** working build — a selection-first wizard with the Website (Artemis + `nuclei -as`),
+> Server-packages (Trivy, auto-collected or uploaded), and Other-software (MITRE Explorer) tiers,
+> plus a built-in DVWA test target. Built for the Ransomware Defence Summer Bootcamp.
 
 ## In plain words
 
@@ -131,24 +131,26 @@ by default — so the brute-forcers and injectors never run.
 
 ## Guided wizard
 
-Most LCOs don't know which security checks they need. The **wizard** is a thin guidance
-layer that collects up to **three inputs** and turns them into one plain-language report:
-the **website** (Artemis scans the domain — tracks 1–2 below), **server packages** (a Trivy
-report you upload — track 3), and **other software** (you type product + version — track 4).
-Each maps to a different tool and a different confidence level:
+Most LCOs don't know which security checks they need. The **wizard** opens by letting them
+**pick which of the three checks to run**, then walks the chosen ones in order — **website**
+first (Artemis + a targeted `nuclei -as` scan — tracks 1–2 below), then **other software**
+(type product + version — track 4), and **server packages** last (a Trivy report, pushed
+automatically by a collector or uploaded by hand — track 3). Each maps to a different tool and a
+different confidence level:
 
 ### 1. Applications & their CVEs
 
-- Artemis **fingerprints the software** a site runs, and its **version where possible** —
-  `webapp_identifier`, `port_scanner`, and CMS version checks (WordPress / Drupal / Joomla).
+- Artemis **fingerprints the software** a site runs (and its **version where possible**) via the
+  always-on `webapp_identifier`, plus `port_scanner` for exposed services.
 - Each detected app is looked up in [**mitre-explorer.org**](https://mitre-explorer.org),
   which links 11K+ products to their known CVEs (prioritized with CISA KEV and EPSS). It
   returns the app's **full** CVE list with per-CVE version ranges; **we then keep only the
   CVEs that affect the detected version, matching on our side** (mitre-explorer has no
   version filter of its own). If a version can't be determined, the report says so rather
   than guessing.
-- Artemis runs its **Nuclei** modules (`nuclei-router` + `nuclei-module`, both required) to
-  actively test the high-priority checks.
+- A decoupled **`nuclei -as`** step (`web/lib/nuclei-scan.ts`) fingerprints the site and runs
+  only the templates matching its stack to actively test for known vulnerabilities. Artemis's
+  own bundled Nuclei modules are deliberately **off** (see *"What we scan"*).
 - Each relevant CVE is reported in one of three clear states:
   - **Confirmed** — the scan actively verified it.
   - **Possible — needs manual check** — known to affect the detected app/version but not
@@ -157,13 +159,17 @@ Each maps to a different tool and a different confidence level:
 
 ### 2. Web scanning
 
-- Exposed files and misconfigurations: `vcs` (exposed `.git`), `bruter` (stray backups),
-  `robots`, `directory_index`, and `subdomain_enumeration`.
+- Exposed files, misconfigurations, and hygiene: `vcs` (exposed `.git`), `directory_index`
+  (open folder listings), `robots` (robots.txt disclosure), and `humble` (HTTP security
+  headers) — plus the targeted `nuclei -as` vulnerability scan above. Brute-forcers and active
+  injectors stay **off** (see *"What we scan — and what we don't"*).
 
 ### 3. Server packages (Trivy)
 
 For installed OS and library packages on a Linux server — which a remote scan **can't see** —
-the org runs **Trivy** and uploads the report:
+**Trivy** runs on the server itself. A small collector can **push** its report on a schedule so
+it's already waiting at scan time (see *"Automatic server scanning"*), or the org can run it by
+hand and upload the file:
 
 ```
 trivy fs --scanners vuln --format json --output sr-report.json /
@@ -187,16 +193,16 @@ Three inputs, one report — **Website** (Artemis + Nuclei), **Server packages**
 
 ## How it works — step by step
 
-The wizard collects up to **three inputs** first; the tools run afterwards, then everything
-merges into one **source-tagged** report.
+The wizard first lets the org **choose which of the three checks to run** and collects their
+inputs; the tools run afterwards, then everything merges into one **source-tagged** report.
 
 ```mermaid
 flowchart TD
-    A(["Org opts in — consent recorded"]) --> B["Wizard: choose sources + provide inputs"]
-    B --> W["Website — your domain (automatic)"]
-    B --> P["Server packages — upload a Trivy report"]
+    A(["Org opts in — consent recorded"]) --> B["Wizard: choose which checks + provide inputs"]
+    B --> W["Website — your domain (or built-in DVWA)"]
+    B --> P["Server packages — Trivy report (auto-collected or uploaded)"]
     B --> O["Other software — type product + version"]
-    W --> W2["Artemis + Nuclei: fingerprint apps, test known issues, check hygiene"]
+    W --> W2["Artemis hygiene + decoupled nuclei -as: fingerprint, test known issues"]
     P --> P2["Read Trivy by PURL: installed + fixed version + CVE"]
     O --> O2["Match product + version in MITRE Explorer Applications"]
     W2 --> X["Enrich + prioritize in MITRE Explorer<br/>CVEs, KEV/EPSS, plain language"]
@@ -206,11 +212,12 @@ flowchart TD
 ```
 
 1. **Opt in** — the organization gives permission; we record consent.
-2. **Choose sources + give inputs** — a domain, a Trivy report, and/or a product+version list.
-3. **Website** → Artemis fingerprints the apps and runs Nuclei (`nuclei-router` → `nuclei-module`),
-   plus hygiene checks (`vcs`, `directory_index`, `mail_dns_scanner`).
-4. **Server packages** → we read the uploaded Trivy report by **PURL** (installed + fixed
-   version + CVE).
+2. **Choose which checks + give inputs** — a domain (or the built-in DVWA target), a Trivy
+   report (auto-collected or uploaded), and/or a product+version list.
+3. **Website** → Artemis runs hygiene checks (`vcs`, `directory_index`, `robots`, `humble`,
+   `mail_dns_scanner`) while a decoupled **`nuclei -as`** step fingerprints the site and tests for
+   known vulnerabilities.
+4. **Server packages** → we read the Trivy report by **PURL** (installed + fixed version + CVE).
 5. **Other software** → we match each declared product + version in MITRE Explorer.
 6. **Enrich** → MITRE Explorer adds CVE detail, KEV/EPSS priority, and plain-language context.
 7. **Report** → one source-tagged report: **Confirmed** (Website, Server) · **Advisory** (Other,
@@ -328,20 +335,23 @@ organizations at scale. The four proposals below map to the challenge goals.
 
 ## Roadmap (bootcamp)
 
-Scoped to be presentable within a few days — Applications + Web tracks only.
-
-- [ ] Stand up Artemis via Docker Compose
-- [ ] Run a test scan on **one consented site**; inspect the real fingerprint/version output
-- [ ] Wizard: a few questions → enable the **Applications + Web** Artemis modules
-- [ ] Join detected app + version to **mitre-explorer** CVE data (version-filtered)
-- [ ] Plain-language report with the three CVE states + simple remediation steps
+- [x] Stand up Artemis via Docker Compose
+- [x] Run a test scan on a consented site; inspect the real fingerprint/version output
+- [x] Wizard: pick which checks to run → LCO-focused Artemis modules + decoupled `nuclei -as`
+- [x] Join detected app + version to **mitre-explorer** CVE data (matched client-side)
+- [x] Server-packages tier (Trivy) — automatic collector push **and** manual upload
+- [x] Other-software tier — manual product + version → MITRE Explorer (Advisory)
+- [x] Built-in **DVWA** test target with an active demo scan (Confirmed findings)
+- [x] Plain-language, source-tagged report with the three states + remediation steps
 - [ ] _(stretch)_ Re-scan to confirm fixes and send reminders
+- [ ] _(stretch)_ LLM business-impact summary
 
 ## Getting started
 
 The app lives in [`web/`](web) (Next.js + PostgreSQL). The website tier needs a running
 **Artemis** (Docker Compose); **Trivy** is not installed here — it runs on the server you're
-checking and uploads its JSON report.
+checking and its report is pushed by the collector or uploaded by hand (see *"Automatic server
+scanning"*).
 
 ```bash
 cd web
