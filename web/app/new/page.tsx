@@ -81,7 +81,7 @@ export default function NewScan() {
     <div className="grid min-h-screen grid-cols-[280px_1fr]">
       {/* route rail */}
       <aside className="flex flex-col bg-ink px-6 py-8 text-[#EAF2F1]">
-        <Brand />
+        <Brand onDark />
         <ol className="mt-9 flex-1 space-y-1">
           {STEPS.map((label, i) => (
             <li key={label} className="flex items-start gap-3.5 py-2.5">
@@ -249,7 +249,7 @@ export default function NewScan() {
         )}
 
         <div className="flex-1" />
-        <div className="flex items-center gap-3 pt-6">
+        <div className="flex items-center gap-3 border-t border-line pt-6">
           {step > 0 && (
             <button
               onClick={() => setStep(step - 1)}
@@ -258,24 +258,30 @@ export default function NewScan() {
               ← Back
             </button>
           )}
-          <div className="flex-1" />
-          {step < STEPS.length - 1 ? (
-            <button
-              disabled={step === 0 && !canStart}
-              onClick={() => setStep(step + 1)}
-              className="rounded-xl bg-route px-6 py-3 text-[14.5px] font-semibold text-white disabled:opacity-40"
-            >
-              Continue →
-            </button>
-          ) : (
-            <button
-              disabled={busy || !canStart}
-              onClick={run}
-              className="rounded-xl bg-route px-6 py-3 text-[14.5px] font-semibold text-white disabled:opacity-40"
-            >
-              {busy ? "Checking…" : "Run the check →"}
-            </button>
-          )}
+          <div className="flex flex-1 items-center justify-end gap-3">
+            {step === 0 && !canStart && (
+              <span className="text-[13px] text-muted">
+                Enter a website and tick the authorization box to continue
+              </span>
+            )}
+            {step < STEPS.length - 1 ? (
+              <button
+                disabled={step === 0 && !canStart}
+                onClick={() => setStep(step + 1)}
+                className="rounded-xl bg-route px-6 py-3 text-[14.5px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
+              >
+                Continue →
+              </button>
+            ) : (
+              <button
+                disabled={busy || !canStart}
+                onClick={run}
+                className="rounded-xl bg-route px-6 py-3 text-[14.5px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
+              >
+                {busy ? "Checking…" : "Run the check →"}
+              </button>
+            )}
+          </div>
         </div>
       </main>
     </div>

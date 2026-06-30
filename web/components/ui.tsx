@@ -17,15 +17,23 @@ export function Mark({ size = 34 }: { size?: number }) {
   );
 }
 
-export function Brand() {
+export function Brand({ onDark = false }: { onDark?: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <Mark />
       <div>
-        <div className="font-display text-[19px] font-bold tracking-tight text-ink">
+        <div
+          className={`font-display text-[19px] font-bold tracking-tight ${
+            onDark ? "text-white" : "text-ink"
+          }`}
+        >
           SafetyRoutes
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-route-deep">
+        <div
+          className={`font-mono text-[10px] uppercase tracking-[0.18em] ${
+            onDark ? "text-[#7FB0B3]" : "text-route-deep"
+          }`}
+        >
           Guided check
         </div>
       </div>
