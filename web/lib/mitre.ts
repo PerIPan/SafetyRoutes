@@ -20,10 +20,10 @@ async function cacheGet<T>(key: string): Promise<T | null> {
 async function cacheSet(key: string, json: unknown, ttlHours = 24): Promise<void> {
   await query(
     `INSERT INTO mitre_cache (cache_key, response_json, fetched_at, ttl_hours)
-     VALUES ($1, $2, now(), $3)
+     VALUES ($1, $2::jsonb, now(), $3)
      ON CONFLICT (cache_key) DO UPDATE
        SET response_json = EXCLUDED.response_json, fetched_at = now(), ttl_hours = EXCLUDED.ttl_hours`,
-    [key, json as object, ttlHours],
+    [key, JSON.stringify(json), ttlHours], // stringify so arrays aren't coerced to PG arrays
   );
 }
 
@@ -91,6 +91,33 @@ export async function getPackageAdvisories(
   const data = await getJson<MitrePackageResult>(`/api/v1/packages/${seg(ecosystem)}/${seg(name)}`);
   if (data) await cacheSet(key, data, 12);
   return data;
+}
+
+export interface MitreAppSuggestion {
+  vendor: string;
+  product: string;
+  normalized: string;
+  cveCount: number | null;
+}
+
+/** Type-ahead: matching applications for a search string (for the wizard autocomplete). */
+export async function searchApplications(q: string): Promise<MitreAppSuggestion[]> {
+  const term = q.trim();
+  if (term.length < 2) return [];
+  const key = `appsuggest:${term.toLowerCase()}`;
+  const cached = await cacheGet<MitreAppSuggestion[]>(key);
+  if (cached) return cached;
+  const list = await getJson<{
+    data?: { vendor: string; product: string; normalized: string; cveCount?: number }[];
+  }>(`/api/v1/applications?search=${encodeURIComponent(term)}&limit=8&sort=cve_count`);
+  const items = (list?.data ?? []).map((d) => ({
+    vendor: d.vendor,
+    product: d.product,
+    normalized: d.normalized,
+    cveCount: d.cveCount ?? null,
+  }));
+  if (items.length) await cacheSet(key, items, 24);
+  return items;
 }
 
 /** Resolve a free-text product to its mitre-explorer slug (vendor/product). */

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brand } from "@/components/ui";
 
 type SoftwareRow = { vendor: string; product: string; version: string };
+type AppSuggestion = { vendor: string; product: string; normalized: string; cveCount: number | null };
 
 const STEPS = ["Permission & site", "Server packages", "Other software", "Run the check"];
 
@@ -21,6 +22,9 @@ export default function NewScan() {
   ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acItems, setAcItems] = useState<AppSuggestion[]>([]);
+  const [acRow, setAcRow] = useState<number | null>(null);
+  const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canStart = domain.trim().length > 0 && consent;
 
@@ -29,6 +33,30 @@ export default function NewScan() {
     if (!file) return;
     setTrivyName(file.name);
     setTrivyText(await file.text());
+  }
+
+  function setRow(i: number, patch: Partial<SoftwareRow>) {
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  }
+  function onProductType(i: number, value: string) {
+    setRow(i, { product: value });
+    setAcRow(i);
+    if (acTimer.current) clearTimeout(acTimer.current);
+    if (value.trim().length < 2) {
+      setAcItems([]);
+      return;
+    }
+    acTimer.current = setTimeout(async () => {
+      const r = await fetch(`/api/applications/search?q=${encodeURIComponent(value)}`)
+        .then((res) => res.json())
+        .catch(() => ({ items: [] }));
+      setAcItems(r.items ?? []);
+    }, 250);
+  }
+  function pickSuggestion(i: number, s: AppSuggestion) {
+    setRow(i, { vendor: s.vendor, product: s.product });
+    setAcItems([]);
+    setAcRow(null);
   }
 
   async function run() {
@@ -194,24 +222,57 @@ export default function NewScan() {
               {rows.map((r, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-[1fr_1.4fr_0.9fr_36px] items-center gap-3 border-t border-[#EEF2F1] px-4 py-2"
+                  className="grid grid-cols-[1fr_1.4fr_0.9fr_36px] items-start gap-3 border-t border-[#EEF2F1] px-4 py-2"
                 >
-                  {(["vendor", "product", "version"] as const).map((k) => (
+                  <input
+                    value={r.vendor}
+                    placeholder="Microsoft"
+                    onChange={(e) => setRow(i, { vendor: e.target.value })}
+                    className="rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
+                  />
+                  <div className="relative">
                     <input
-                      key={k}
-                      value={r[k]}
-                      placeholder={k === "vendor" ? "Microsoft" : k === "product" ? "Office LTSC" : "2024"}
-                      onChange={(e) => {
-                        const next = [...rows];
-                        next[i] = { ...next[i], [k]: e.target.value };
-                        setRows(next);
-                      }}
-                      className="rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
+                      value={r.product}
+                      placeholder="Start typing… e.g. Office"
+                      onChange={(e) => onProductType(i, e.target.value)}
+                      onFocus={() => setAcRow(i)}
+                      onBlur={() => setTimeout(() => setAcRow((cur) => (cur === i ? null : cur)), 150)}
+                      className="w-full rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
                     />
-                  ))}
+                    {acRow === i && acItems.length > 0 && (
+                      <ul className="absolute z-20 mt-1 max-h-64 w-[340px] overflow-auto rounded-lg border border-line bg-white shadow-xl">
+                        {acItems.map((s) => (
+                          <li key={s.normalized}>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                pickSuggestion(i, s);
+                              }}
+                              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] hover:bg-paper"
+                            >
+                              <span className="truncate">
+                                <b className="text-ink">{s.product}</b>{" "}
+                                <span className="text-muted">· {s.vendor}</span>
+                              </span>
+                              <span className="shrink-0 font-mono text-[11px] text-muted">
+                                {s.cveCount ?? 0} CVEs
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <input
+                    value={r.version}
+                    placeholder="2024"
+                    onChange={(e) => setRow(i, { version: e.target.value })}
+                    className="rounded-md border border-line bg-white px-2.5 py-1.5 text-[13.5px] text-ink outline-none"
+                  />
                   <button
                     onClick={() => setRows(rows.filter((_, j) => j !== i))}
-                    className="text-muted"
+                    className="mt-1.5 text-muted"
                     aria-label="remove"
                   >
                     ×

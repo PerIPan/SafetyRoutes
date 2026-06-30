@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { getScan } from "@/lib/scans";
 import { getFindings } from "@/lib/findings";
 import { buildReport } from "@/lib/report";
-import { Brand, SourceChip, ConfidencePill } from "@/components/ui";
+import { Brand } from "@/components/ui";
 import { ScanLive } from "@/components/scan-live";
-import type { Finding } from "@/lib/types";
+import { FindingsView } from "@/components/findings-view";
 
 export const dynamic = "force-dynamic";
 
@@ -16,35 +16,6 @@ function SummaryCard({ n, label, color }: { n: number; label: string; color: str
         {n}
       </span>
       <span className="max-w-[12ch] text-[12px] leading-tight text-muted">{label}</span>
-    </div>
-  );
-}
-
-function FindingCard({ f }: { f: Finding }) {
-  return (
-    <div className="flex items-start gap-3.5 rounded-xl border border-line bg-surface px-4 py-3.5">
-      <SourceChip source={f.source} />
-      <ConfidencePill confidence={f.confidence} />
-      <div className="min-w-0">
-        <div className="text-[14.5px] font-semibold text-ink">{f.title}</div>
-        {f.plainExplanation && (
-          <div className="mt-1 text-[13px] leading-relaxed text-ink-soft">
-            {f.plainExplanation}{" "}
-            {f.fixText && <span className="font-semibold text-ink">Fix: {f.fixText}</span>}
-          </div>
-        )}
-        <div className="mt-1.5 font-mono text-[10.5px] text-muted">
-          {[
-            f.severityPlain,
-            f.cveId,
-            f.module,
-            f.purl,
-            f.enrichmentStatus === "unavailable" ? "enrichment: n/a" : null,
-          ]
-            .filter(Boolean)
-            .join("  ·  ")}
-        </div>
-      </div>
     </div>
   );
 }
@@ -93,11 +64,7 @@ export default async function ReportPage({
           .
         </p>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {findings.map((f) => (
-            <FindingCard key={f.id} f={f} />
-          ))}
-        </div>
+        <FindingsView findings={findings} />
       )}
 
       <div className="mt-8 flex gap-3">
