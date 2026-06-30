@@ -381,9 +381,11 @@ cd web
 npm install
 # create web/.env.local with:
 #   DATABASE_URL=postgres://…@localhost:5433/safetyroutes
-#   ARTEMIS_API_URL=http://localhost:5001
-#   ARTEMIS_API_TOKEN=…
+#   ARTEMIS_API_URL=http://localhost:5000      # the Artemis you set up below
+#   ARTEMIS_API_TOKEN=…                         # from Artemis's .env (API_TOKEN)
 #   MITRE_BASE_URL=https://mitre-explorer.org
+#   SCAN_ALLOWLIST=example.org,test.org         # domains you're authorized to scan (CSV)
+#   # SCAN_ALLOW_ANY=true                        # dev-only: bypass the allowlist for any consented target
 npm run db:migrate     # apply web/db/schema.sql (idempotent)
 npm run db:seed        # optional — sample report at /demo
 npm run dev            # http://localhost:3000
