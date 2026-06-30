@@ -399,19 +399,36 @@ ARTEMIS_API_TOKEN=<the API_TOKEN from Artemis's .env>
 > with Docker access. If your container name differs, set `NUCLEI_CONTAINER` (and `DOCKER_BIN`
 > if `docker` isn't at `/opt/homebrew/bin/docker`) in `web/.env.local`.
 
-**Built-in test target (DVWA).** The wizard's website step has a "use the built-in DVWA test
-site" checkbox — [DVWA](https://github.com/digininja/DVWA) is a deliberately-vulnerable demo app,
-handy for seeing what a real finding looks like. Run it on the scanner's Docker network so the
-nuclei container can reach it:
+**Built-in test target (DVWA).** The wizard's website step has a "use the built-in DVWA test site"
+checkbox — [DVWA](https://github.com/digininja/DVWA) is a deliberately-vulnerable demo app, so you
+can see what real findings look like. DVWA needs **two** containers (the app + its database) on the
+scanner's Docker network so the nuclei container can reach it by name:
 
 ```bash
-docker run -d --name dvwa --network artemis_default -p 127.0.0.1:4280:80 ghcr.io/digininja/dvwa:latest
+# 1 — database for DVWA, on the same network as the scanner
+docker run -d --name dvwa-db --network artemis_default \
+  -e MYSQL_ROOT_PASSWORD=dvwa -e MYSQL_DATABASE=dvwa \
+  -e MYSQL_USER=dvwa -e MYSQL_PASSWORD='p@ssw0rd' mariadb:10
+
+# 2 — DVWA itself, pointed at that database, published on localhost:4280
+docker run -d --name dvwa --network artemis_default -e DB_SERVER=dvwa-db \
+  -p 127.0.0.1:4280:80 ghcr.io/digininja/dvwa:latest
 ```
 
-It's reachable in-container at `http://dvwa` (and at `http://127.0.0.1:4280` to view). The scanner
-allows this one internal host by design (`INTERNAL_SCAN_HOSTS`, default `dvwa`) — it bypasses the
-allowlist + SSRF guard, so keep it set to your own test containers only, and unset it on any
-deployed instance.
+> Run DVWA standalone (no `dvwa-db`) and every page dies with `mysqli … Connection refused` — that
+> empty result is the #1 DVWA gotcha. Give MariaDB ~20 s to start before the first scan.
+
+DVWA is reachable **in-container** at `http://dvwa` (what nuclei uses) and on the **host** at
+`http://127.0.0.1:4280` (what the active demo uses — set `DVWA_HOST_URL` to change it). Because
+DVWA's lessons are auth-gated, ticking the box runs an **active demo scan** (`lib/dvwa-scan.ts`): it
+logs in as `admin/password`, creates/seeds the DB, sets the security level to *low*, and confirms
+DVWA's signature flaws — SQL injection, OS command injection, reflected XSS, file inclusion, and the
+default admin password — as **Confirmed** findings. This active testing runs **only** against the
+bundled DVWA host.
+
+The scanner allows this one internal host by design (`INTERNAL_SCAN_HOSTS`, default `dvwa`) — it
+bypasses the allowlist + SSRF guard, so keep it set to your own test containers only, and unset it on
+any deployed instance.
 
 ## Automatic server scanning (Trivy collector)
 

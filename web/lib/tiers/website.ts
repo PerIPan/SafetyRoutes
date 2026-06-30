@@ -11,6 +11,7 @@ import { idemKey, replaceSourceFindings } from '../findings';
 import { setSourceStatus, setScanArtemis } from '../scans';
 import { isInternalScanHost } from '../net-guard';
 import { runNucleiAutomaticScan, isPanelHit, type NucleiResult } from '../nuclei-scan';
+import { runDvwaScan, type DvwaResult } from '../dvwa-scan';
 import type { Finding, FindingSeverity } from '../types';
 
 // Interesting Artemis results can be indexed a few seconds after pending-tasks hits 0; settle
@@ -251,6 +252,35 @@ export async function runWebsiteTier(
       enrichmentStatus: 'done',
       idempotencyKey: idemKey(scanId, 'website', 'no-https'),
     });
+  }
+
+  // DVWA (internal teaching target): its lessons are auth-gated, so a passive scan can't see them.
+  // Actively confirm DVWA's signature vulnerabilities (login + exploit) → Confirmed findings. This
+  // runs ONLY for the internal target and is the point of the DVWA demo.
+  if (internal) {
+    let dvwa: DvwaResult = { status: 'error', findings: [] };
+    try {
+      dvwa = await runDvwaScan();
+    } catch {
+      /* keep the safe default */
+    }
+    for (const f of dvwa.findings) {
+      findings.push({
+        scanId,
+        source: 'website',
+        confidence: 'confirmed',
+        title: f.title,
+        plainExplanation: f.evidence ? `${f.explanation} (Evidence: ${f.evidence})` : f.explanation,
+        severity: f.severity,
+        severityPlain: plainSeverity(f.severity),
+        fixText: f.fix,
+        cveId: null,
+        module: 'dvwa',
+        artemisFindingId: `dvwa:${f.id}`,
+        enrichmentStatus: 'done',
+        idempotencyKey: idemKey(scanId, 'website', 'dvwa', f.id),
+      });
+    }
   }
 
   // When nothing was flagged, be honest about what actually ran. A green "all clear" is ONLY
