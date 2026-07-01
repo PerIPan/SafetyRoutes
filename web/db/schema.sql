@@ -170,3 +170,15 @@ ALTER TABLE trivy_uploads DROP CONSTRAINT IF EXISTS trivy_uploads_idempotency_ke
 DO $$ BEGIN
   ALTER TABLE trivy_uploads ADD CONSTRAINT uq_trivy_upload_idem UNIQUE (scan_id, idempotency_key);
 EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Business-impact report (Gemini) + authorization/consent record.
+--   authorization_snapshot: IMMUTABLE consent terms captured at scan creation; printed
+--     verbatim on the authorization page — never rewritten by later edits.
+--   org_context: MUTABLE prompt-conditioning (what the org does / who it serves / data held);
+--     kept separate from the consent artifact so it can change without touching what was authorized.
+--   business_report*: cached LLM/fallback summary; nulled by replaceSourceFindings on any re-ingest.
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS authorization_snapshot jsonb;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS org_context            jsonb;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS business_report        jsonb;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS business_report_model  text;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS business_report_at     timestamptz;

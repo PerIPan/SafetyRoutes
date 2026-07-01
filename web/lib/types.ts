@@ -53,6 +53,43 @@ export interface Scan {
   uploadToken: string | null; // authorizes a curl-piped Trivy POST
   sourceStatus: Partial<Record<FindingSource, SourceStatus>>;
   createdAt: string;
+  authorization: AuthorizationSnapshot | null; // immutable consent record
+  orgContext: OrgContext | null; // mutable prompt-conditioning for the business report
+  businessReport: BusinessReport | null; // cached LLM/fallback summary
+}
+
+/** Immutable consent record captured at scan creation; printed verbatim on the auth page. */
+export interface AuthorizationSnapshot {
+  organizationName: string;
+  authorizedBy: string;
+  contactEmail: string | null;
+  domain: string | null;
+  profile: string;
+  acceptedAt: string; // ISO
+  authorizationId: string; // SR-XXXXXXXX
+}
+
+/** Mutable, org-supplied context used only to tailor the business-impact summary. */
+export interface OrgContext {
+  whatOrgDoes?: string | null;
+  whoWeServe?: string | null;
+  sensitiveData?: string | null;
+}
+
+/** One business-impact statement, grounded in specific findings (evidence ids f1, f2…). */
+export interface BusinessImpact {
+  evidenceIds: string[];
+  statement: string;
+}
+
+/** Plain-language, business-facing summary shown at the top of the report. */
+export interface BusinessReport {
+  headline: string;
+  overview: string;
+  impacts: BusinessImpact[];
+  actions: string[];
+  positive: string;
+  generatedBy: 'gemini' | 'fallback';
 }
 
 export const SEVERITY_ORDER: Record<FindingSeverity, number> = {

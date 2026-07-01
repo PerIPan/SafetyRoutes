@@ -34,6 +34,7 @@ function rowToFinding(r: Row): Finding {
     fixedVersion: r.fixed_version as string | null,
     declaredSoftwareId: r.declared_software_id as string | null,
     enrichmentStatus: r.enrichment_status as Finding['enrichmentStatus'],
+    idempotencyKey: (r.idempotency_key as string | null) ?? null,
   };
 }
 
@@ -71,6 +72,12 @@ export async function replaceSourceFindings(
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${scanId}:${source}`]);
     await client.query(`DELETE FROM findings WHERE scan_id = $1 AND source = $2`, [scanId, source]);
     for (const f of findings) await insertFinding(client, f);
+    // Invalidate any cached business report — its evidence just changed. Regenerated on next view.
+    await client.query(
+      `UPDATE scans SET business_report = NULL, business_report_model = NULL,
+         business_report_at = NULL, updated_at = now() WHERE id = $1`,
+      [scanId],
+    );
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');
