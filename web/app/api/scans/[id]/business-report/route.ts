@@ -2,6 +2,7 @@ import { getFindings } from '@/lib/findings';
 import { selectForReport } from '@/lib/report';
 import { fallbackBusinessReport, generateBusinessReport } from '@/lib/business-report';
 import type { ReportInputs } from '@/lib/business-report';
+import { deriveOrgProfile } from '@/lib/org-enrich';
 import { audit, getScan, saveBusinessReport } from '@/lib/scans';
 
 // GET /api/scans/:id/business-report — return the cached summary (or null if not generated yet).
@@ -29,8 +30,12 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     checksCompletedCount: findings.filter((f) => f.confidence === 'no_issue').length,
   };
 
+  // Enrich context with a short profile derived from the org's own authorized website (cached, safe).
+  const siteSummary = await deriveOrgProfile(scan.domain).catch(() => null);
+  const orgContext = { ...(scan.orgContext ?? {}), siteSummary };
+
   try {
-    const { report, model } = await generateBusinessReport(inputs, scan.orgContext);
+    const { report, model } = await generateBusinessReport(inputs, orgContext);
     await saveBusinessReport(id, report, model);
     await audit(id, 'business_report_generated', {
       model, selectedCount: selected.length, totalCount: findings.length,

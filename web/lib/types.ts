@@ -69,11 +69,13 @@ export interface AuthorizationSnapshot {
   authorizationId: string; // SR-XXXXXXXX
 }
 
-/** Mutable, org-supplied context used only to tailor the business-impact summary. */
+/** Mutable context used only to tailor the business-impact summary. The first three are org-typed;
+ *  siteSummary is auto-derived at report time from the org's own authorized website. */
 export interface OrgContext {
   whatOrgDoes?: string | null;
   whoWeServe?: string | null;
   sensitiveData?: string | null;
+  siteSummary?: string | null;
 }
 
 /** One business-impact statement, grounded in specific findings (evidence ids f1, f2…). */

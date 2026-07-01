@@ -52,8 +52,9 @@ export default async function AuthorizationPage({
         or scanning other domains and subdomains.
       </p>
       <p className="mt-2 leading-relaxed text-ink-soft">
-        To produce the plain-language summary in the report, the findings and any organization
-        details provided are sent to Google Gemini, a third-party AI service.
+        To produce the plain-language summary in the report, the findings, any organization details
+        provided, and a short summary of the target website&apos;s public pages are sent to Google
+        Gemini, a third-party AI service.
       </p>
       <h2 className="mt-6 font-display text-xl font-semibold">Acknowledgement</h2>
       <p className="mt-2 leading-relaxed text-ink-soft">

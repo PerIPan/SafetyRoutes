@@ -310,11 +310,11 @@ export default function NewScan() {
               </p>
               <div className="mb-4 rounded-lg border border-[#C2E1DF] bg-[#F1FAFA] px-3.5 py-3 text-[12.5px] leading-snug text-ink-soft">
                 <span className="font-semibold text-route-deep">How your report is written:</span>{" "}
-                once the checks finish, your findings plus the details below are sent to Google
-                Gemini, which writes a short plain-language business-impact summary at the top of
-                your report. It uses only your findings and these details — it won&apos;t invent
-                figures, losses, or compliance claims. If the AI is unavailable, a built-in template
-                is used instead.
+                once the checks finish, your findings, the details below, and a short summary of your
+                website&apos;s public pages are sent to Google Gemini, which writes a plain-language
+                business-impact summary at the top of your report. It uses only that information — it
+                won&apos;t invent figures, losses, or compliance claims. If the AI is unavailable, a
+                built-in template is used instead.
               </div>
               <Field label="Organization name">
                 <input

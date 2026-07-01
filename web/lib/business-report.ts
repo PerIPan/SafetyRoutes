@@ -78,6 +78,7 @@ function buildPrompt(
   if (orgContext?.whatOrgDoes) org.push(`What the organization does: ${clean(orgContext.whatOrgDoes, 300)}`);
   if (orgContext?.whoWeServe) org.push(`Who it serves: ${clean(orgContext.whoWeServe, 300)}`);
   if (orgContext?.sensitiveData) org.push(`Sensitive data it holds: ${clean(orgContext.sensitiveData, 300)}`);
+  if (orgContext?.siteSummary) org.push(`From the organization's own website: ${clean(orgContext.siteSummary, 600)}`);
   const orgBlock = org.length ? `Organization context:\n${org.join('\n')}\n\n` : '';
   return [
     'You write a short, plain-language security summary for the leaders of a small organization.',
