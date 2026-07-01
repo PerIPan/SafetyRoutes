@@ -66,7 +66,8 @@ SafetyRoutes is a **Next.js + PostgreSQL** app that wraps three trusted, free se
 behind one guided wizard built for non-technical organizations: **Artemis** (+ Nuclei) checks
 the website, **Trivy** checks a server's packages, and **MITRE Explorer** connects the software
 an org runs to the flaws known to affect it. Three inputs → one plain-language, source-tagged
-report. We only ever scan organizations that have asked us to.
+report, led by an **AI business-impact summary** (Google Gemini) written from the findings and
+tailored to the organization. We only ever scan organizations that have asked us to.
 
 ## Scanning engine: Artemis
 
@@ -232,7 +233,9 @@ flowchart TD
 
 The wizard collects up to three inputs, then merges everything into one source-tagged,
 plain-language report: **Confirmed** (Website / Server) · **Advisory — verify** (Other) ·
-**No issue found**.
+**No issue found**. At the top sits an **AI business-impact summary** written by Google Gemini —
+grounded in the findings, tailored with the org details entered in the wizard and a short profile
+auto-derived from the org's own website, with a deterministic template as fallback.
 
 ## CVE data — the mitre-explorer API
 
@@ -321,8 +324,11 @@ organizations at scale. The four proposals below map to the challenge goals.
 
 ### 3. Plain-language reporting (non-technical audiences)
 
-- Translate Artemis findings into a **tiered report**: business-impact summary →
-  prioritized "what to do" action list → optional technical appendix.
+- A **plain-language business-impact summary** at the top of the report, written by **Google
+  Gemini** from the findings (grounded — no invented figures, losses, or compliance claims) and
+  tailored with the org's own details plus a short profile auto-derived from its website; a
+  deterministic template is used when the AI is unavailable. Below it: source-tagged findings with
+  a prioritized "what to do" action list.
 - Express severity in **plain language** ("anyone on the internet can read your internal
   files") rather than CVSS jargon.
 - Per-finding remediation steps sized to an LCO's capacity.
@@ -343,8 +349,10 @@ organizations at scale. The four proposals below map to the challenge goals.
 - [x] Other-software tier — manual product + version → MITRE Explorer (Advisory)
 - [x] Built-in **DVWA** test target with an active demo scan (Confirmed findings)
 - [x] Plain-language, source-tagged report with the three states + remediation steps
+- [x] **AI business-impact summary** (Google Gemini): a deterministic classifier ranks the findings,
+      Gemini writes a grounded plain-language summary tailored by org details + the org's own website,
+      with a deterministic template fallback
 - [ ] _(stretch)_ Re-scan to confirm fixes and send reminders
-- [ ] _(stretch)_ LLM business-impact summary
 
 ## Getting started
 
@@ -363,6 +371,8 @@ npm install
 #   MITRE_BASE_URL=https://mitre-explorer.org
 #   SCAN_ALLOWLIST=example.org,test.org         # domains you're authorized to scan (CSV)
 #   # SCAN_ALLOW_ANY=true                        # dev-only: bypass the allowlist for any consented target
+#   GEMINI_API_KEY=…                             # enables the AI business-impact summary (else a template is used)
+#   # GEMINI_MODEL=gemini-flash-latest            # optional model override
 npm run db:migrate     # apply web/db/schema.sql (idempotent)
 npm run db:seed        # optional — sample report at /demo
 npm run dev            # http://localhost:3000
