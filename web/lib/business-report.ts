@@ -228,7 +228,10 @@ function defaultGeminiCall(apiKey: string | undefined, model: string): (prompt: 
           responseMimeType: 'application/json',
           responseSchema: RESPONSE_SCHEMA,
           temperature: 0.25,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 2048,
+          // gemini-flash-latest resolves to a thinking model; without capping "thinking" it can
+          // consume the whole output budget and leave no room for the JSON answer.
+          thinkingConfig: { thinkingBudget: 0 },
         },
         safetySettings: SAFETY_SETTINGS,
       }),
