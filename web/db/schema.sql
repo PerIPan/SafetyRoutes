@@ -138,3 +138,9 @@ ALTER TABLE findings ADD COLUMN IF NOT EXISTS is_kev boolean;
 ALTER TABLE findings ADD COLUMN IF NOT EXISTS epss   real;
 ALTER TABLE findings ADD COLUMN IF NOT EXISTS cvss   real;
 CREATE INDEX IF NOT EXISTS idx_findings_scan_kev ON findings(scan_id, is_kev);
+-- A point-in-time authorization record and cached business report.  The snapshot is deliberately
+-- stored with the scan: later edits to organization details must not rewrite what was authorized.
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS authorization_snapshot jsonb;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS business_report jsonb;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS business_report_model text;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS business_report_at timestamptz;

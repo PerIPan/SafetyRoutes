@@ -71,6 +71,12 @@ export async function replaceSourceFindings(
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${scanId}:${source}`]);
     await client.query(`DELETE FROM findings WHERE scan_id = $1 AND source = $2`, [scanId, source]);
     for (const f of findings) await insertFinding(client, f);
+    // Findings changed, so a previously cached executive summary is no longer authoritative.
+    await client.query(
+      `UPDATE scans SET business_report = NULL, business_report_model = NULL,
+       business_report_at = NULL, updated_at = now() WHERE id = $1`,
+      [scanId],
+    );
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { query, queryOne } from './db';
 import { isScanProfile, DEFAULT_SCAN_PROFILE } from './scan-profiles';
-import type { FindingSource, Scan, ScanStatus, SourceStatus } from './types';
+import type { BusinessReport, FindingSource, Scan, ScanStatus, SourceStatus } from './types';
 
 const DEMO_ORG = 'Demo organization';
 
@@ -23,6 +23,8 @@ export interface CreateScanInput {
   ownershipVerified?: boolean;
   ownershipMethod?: string | null;
   profile?: string | null; // website scan depth
+  organizationName?: string | null;
+  contactEmail?: string | null;
 }
 
 export async function createScan(input: CreateScanInput): Promise<string> {
@@ -31,8 +33,8 @@ export async function createScan(input: CreateScanInput): Promise<string> {
   const row = await queryOne<{ id: string }>(
     `INSERT INTO scans
        (org_id, domain, status, consent_by, consent_at, ownership_verified, ownership_method,
-        scan_profile, upload_token)
-     VALUES ($1, $2, 'pending', $3, now(), $4, $5, $6, $7)
+        scan_profile, upload_token, authorization_snapshot)
+     VALUES ($1, $2, 'pending', $3, now(), $4, $5, $6, $7, $8::jsonb)
      RETURNING id`,
     [
       orgId,
@@ -42,6 +44,15 @@ export async function createScan(input: CreateScanInput): Promise<string> {
       input.ownershipMethod ?? null,
       profile,
       randomUUID().replace(/-/g, ''),
+      JSON.stringify({
+        organizationName: input.organizationName?.trim() || 'Organization',
+        authorizedBy: input.consentBy?.trim() || 'Authorized representative',
+        contactEmail: input.contactEmail?.trim() || null,
+        domain: input.domain ?? null,
+        profile,
+        acceptedAt: new Date().toISOString(),
+        authorizationId: `SR-${randomUUID().slice(0, 8).toUpperCase()}`,
+      }),
     ],
   );
   return row!.id;
@@ -58,7 +69,19 @@ function rowToScan(r: ScanRow): Scan {
     uploadToken: (r.upload_token as string | null) ?? null,
     sourceStatus: (r.source_status ?? {}) as Scan['sourceStatus'],
     createdAt: String(r.created_at),
+    authorization: (r.authorization_snapshot as Scan['authorization']) ?? null,
+    businessReport: (r.business_report as BusinessReport | null) ?? null,
   };
+}
+
+export async function saveBusinessReport(
+  id: string, report: BusinessReport, model: string,
+): Promise<void> {
+  await query(
+    `UPDATE scans SET business_report = $2::jsonb, business_report_model = $3,
+       business_report_at = now(), updated_at = now() WHERE id = $1`,
+    [id, JSON.stringify(report), model],
+  );
 }
 
 export async function getScan(id: string): Promise<Scan | null> {

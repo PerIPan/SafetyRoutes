@@ -2,6 +2,8 @@ import { getScan, audit, setSourceStatus } from '@/lib/scans';
 import { runWebsiteTier } from '@/lib/tiers/website';
 import { authorizeScan } from '@/lib/net-guard';
 import { modulesForProfile } from '@/lib/artemis';
+import { BUILT_IN_TEST_DOMAIN, testSiteFindings } from '@/lib/test-site';
+import { replaceSourceFindings } from '@/lib/findings';
 
 // POST /api/scans/:id/start — kick off the async Website (Artemis) scan for the scan's domain.
 // Gated by an allowlist + SSRF check (security review #1). Fire-and-forget: returns immediately;
@@ -12,6 +14,14 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (!scan) return Response.json({ error: 'Scan not found' }, { status: 404 });
   if (!scan.domain) {
     return Response.json({ error: 'This scan has no domain to check.' }, { status: 400 });
+  }
+
+  if (scan.domain === BUILT_IN_TEST_DOMAIN) {
+    const findings = testSiteFindings(id);
+    await replaceSourceFindings(id, 'website', findings);
+    await setSourceStatus(id, 'website', { status: 'done', count: findings.length, message: 'Safe built-in test completed.' });
+    await audit(id, 'built_in_test_completed', { findingCount: findings.length });
+    return Response.json({ started: true, completed: true, domain: scan.domain });
   }
 
   const gate = await authorizeScan(scan.domain);

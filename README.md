@@ -350,10 +350,17 @@ npm install
 #   ARTEMIS_API_URL=http://localhost:5001
 #   ARTEMIS_API_TOKEN=…
 #   MITRE_BASE_URL=https://mitre-explorer.org
+# Optional local AI summary (falls back to deterministic copy when omitted/unavailable):
+#   OLLAMA_BASE_URL=http://localhost:11434
+#   OLLAMA_MODEL=llama3.2:3b
 npm run db:migrate     # apply web/db/schema.sql (idempotent)
 npm run db:seed        # optional — sample report at /demo
 npm run dev            # http://localhost:3000
 ```
+
+For a no-network demonstration, open `/test-site` and run its safe built-in test. Every new
+scan also stores a point-in-time authorization snapshot and exposes a printable authorization
+document from the report.
 
 ## Responsible use
 

@@ -53,6 +53,26 @@ export interface Scan {
   uploadToken: string | null; // authorizes a curl-piped Trivy POST
   sourceStatus: Partial<Record<FindingSource, SourceStatus>>;
   createdAt: string;
+  authorization: AuthorizationSnapshot | null;
+  businessReport: BusinessReport | null;
+}
+
+export interface AuthorizationSnapshot {
+  organizationName: string;
+  authorizedBy: string;
+  contactEmail: string | null;
+  domain: string | null;
+  profile: string;
+  acceptedAt: string;
+  authorizationId: string;
+}
+
+export interface BusinessReport {
+  headline: string;
+  overview: string;
+  actions: string[];
+  positive: string;
+  generatedBy: 'ollama' | 'fallback';
 }
 
 export const SEVERITY_ORDER: Record<FindingSeverity, number> = {

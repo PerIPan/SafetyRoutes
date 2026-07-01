@@ -10,6 +10,7 @@ import { FindingsView } from "@/components/findings-view";
 import { ReportActions } from "@/components/report-actions";
 import { ServerCheck } from "@/components/server-check";
 import { CdnHelp } from "@/components/cdn-help";
+import { BusinessSummary } from "@/components/business-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export default async function ReportPage({
       </h1>
 
       <ScanLive scanId={id} initial={scan.sourceStatus} />
+      {!scanning && findings.length > 0 && <BusinessSummary scanId={id} initial={scan.businessReport} />}
 
       {summary.kevCount > 0 && (
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#E7C3B8] bg-[#FBEAE4] px-4 py-3.5">
@@ -111,6 +113,11 @@ export default async function ReportPage({
       />
 
       <ReportActions scanId={id} initial={scan.sourceStatus} />
+      {scan.authorization && (
+        <Link href={`/report/${id}/authorization`} className="mt-4 inline-block text-[13px] text-route-deep underline print:hidden">
+          View authorization document
+        </Link>
+      )}
     </main>
   );
 }

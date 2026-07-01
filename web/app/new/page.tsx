@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brand } from "@/components/ui";
 import { DepthHelp } from "@/components/depth-help";
 import { SCAN_PROFILE_META } from "@/lib/scan-profiles";
+import { BUILT_IN_TEST_DOMAIN } from "@/lib/test-site";
 
 type SoftwareRow = { vendor: string; product: string; version: string };
 type AppSuggestion = { vendor: string; product: string; normalized: string; cveCount: number | null };
@@ -18,6 +19,8 @@ export default function NewScan() {
   const [step, setStep] = useState(0);
   const [domain, setDomain] = useState("");
   const [consentBy, setConsentBy] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [profile, setProfile] = useState("standard");
   const [helpOpen, setHelpOpen] = useState(false);
@@ -32,6 +35,15 @@ export default function NewScan() {
   const [acRow, setAcRow] = useState<number | null>(null);
   const [acHi, setAcHi] = useState(-1); // keyboard-highlighted suggestion index
   const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("test") === "1") {
+      setDomain(BUILT_IN_TEST_DOMAIN);
+      setOrganizationName("SafetyRoutes demonstration");
+      setConsentBy("Demo operator");
+      setConsent(true);
+    }
+  }, []);
 
   const canStart = domain.trim().length > 0 && consent;
   // Version is required for any software the user lists — without it we can't match the exact CVE
@@ -84,9 +96,13 @@ export default function NewScan() {
           ownershipVerified: true,
           ownershipMethod: "owner-allowlist",
           profile,
+          organizationName: organizationName.trim() || null,
+          contactEmail: contactEmail.trim() || null,
         }),
       });
-      const { id } = await scanRes.json();
+      const scanBody = await scanRes.json();
+      if (!scanRes.ok || !scanBody.id) throw new Error(scanBody.error ?? "Could not create the check");
+      const { id } = scanBody;
 
       if (trivyText) {
         const up = await fetch(`/api/scans/${id}/trivy-upload?filename=${encodeURIComponent(trivyName ?? "report.json")}`, {
@@ -99,16 +115,18 @@ export default function NewScan() {
 
       const software = rows.filter((r) => r.product.trim() && r.version.trim());
       if (software.length) {
-        await fetch(`/api/scans/${id}/declared-software`, {
+        const manual = await fetch(`/api/scans/${id}/declared-software`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ items: software }),
         });
+        if (!manual.ok) throw new Error((await manual.json()).error ?? "Software check failed");
       }
 
       // kick off the async website (Artemis) scan — the report polls for its results
       if (domain.trim()) {
-        await fetch(`/api/scans/${id}/start`, { method: "POST" }).catch(() => {});
+        const start = await fetch(`/api/scans/${id}/start`, { method: "POST" });
+        if (!start.ok) throw new Error((await start.json()).error ?? "Website check could not start");
       }
 
       router.push(`/report/${id}`);
@@ -184,6 +202,23 @@ export default function NewScan() {
                 onChange={(e) => setConsentBy(e.target.value)}
                 placeholder="Jane Doe"
                 className="w-full max-w-[440px] rounded-xl border-[1.5px] border-line bg-[#FBFDFC] px-4 py-3 text-[15px] text-ink outline-none"
+              />
+            </Field>
+            <Field label="Organization name">
+              <input
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                placeholder="Community organization"
+                className="w-full rounded-xl border-[1.5px] border-line bg-[#FBFDFC] px-4 py-3 text-[15px] text-ink outline-none"
+              />
+            </Field>
+            <Field label="Contact email (optional)">
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="security@example.org"
+                className="w-full rounded-xl border-[1.5px] border-line bg-[#FBFDFC] px-4 py-3 text-[15px] text-ink outline-none"
               />
             </Field>
             <label className="mt-2 flex max-w-[470px] items-start gap-3">

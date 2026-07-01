@@ -9,6 +9,8 @@ export async function POST(req: Request) {
     ownershipVerified: !!body.ownershipVerified,
     ownershipMethod: typeof body.ownershipMethod === 'string' ? body.ownershipMethod : null,
     profile: typeof body.profile === 'string' ? body.profile : null,
+    organizationName: typeof body.organizationName === 'string' ? body.organizationName : null,
+    contactEmail: typeof body.contactEmail === 'string' ? body.contactEmail : null,
   });
   return Response.json({ id }, { status: 201 });
 }

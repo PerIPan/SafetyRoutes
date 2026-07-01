@@ -30,6 +30,9 @@ export default function Home() {
         >
           See a sample report
         </Link>
+        <Link href="/test-site" className="px-3 py-3.5 text-[14px] font-semibold text-route-deep underline">
+          Try the safe test site
+        </Link>
       </div>
 
       <div className="mt-14 grid grid-cols-1 gap-3 sm:grid-cols-3">
