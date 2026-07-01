@@ -53,6 +53,15 @@ describe('selectForReport', () => {
     expect(omittedCount).toBe(5);
   });
 
+  test('at a tiny limit the top-ranked finding wins regardless of source order', () => {
+    const serverCritical = mk({ source: 'server', confidence: 'confirmed', severity: 'critical',
+                                isKev: true, title: 'server-critical' });
+    const websiteLow = mk({ source: 'website', confidence: 'confirmed', severity: 'low',
+                            title: 'website-low' });
+    const { selected } = selectForReport([websiteLow, serverCritical], 1);
+    expect(selected.map((f) => f.title)).toEqual(['server-critical']);
+  });
+
   test('per-source floor keeps a lower-band website finding that server CVEs would bury', () => {
     // 25 actively-exploited server CVEs (all fix_now) would fill every slot on rank alone.
     const serverCves = Array.from({ length: 25 }, (_, i) =>

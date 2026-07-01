@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BusinessReport } from "@/lib/types";
 
 /** Plain-language business-impact summary at the top of the report. Renders the cached report if
@@ -14,9 +14,13 @@ export function BusinessSummary({
 }) {
   const [report, setReport] = useState(initial);
   const [loading, setLoading] = useState(!initial);
+  // Guard against React StrictMode's double effect-invoke firing two generate POSTs (2x Gemini spend)
+  // before the DB cache is written. A ref (not AbortController) — aborting would cancel the one fetch.
+  const started = useRef(false);
 
   useEffect(() => {
-    if (report) return;
+    if (report || started.current) return;
+    started.current = true;
     fetch(`/api/scans/${scanId}/business-report`, { method: "POST" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("report failed"))))
       .then((body) => setReport(body.report))

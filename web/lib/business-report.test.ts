@@ -104,4 +104,46 @@ describe('generateBusinessReport', () => {
     expect(report.impacts).toHaveLength(1);
     expect(report.impacts[0].statement).toBe('grounded and kept');
   });
+
+  test('the grounded counts the prompt mandates are NOT treated as fabricated', async () => {
+    // checksCompletedCount/omittedCount appear in prose but never in the evidence JSON.
+    const body = {
+      ...GOOD_BODY,
+      overview: 'A backup file is exposed; 130 more lower-priority items also exist.',
+      positive: '147 checks completed without a known issue.',
+    };
+    const { report } = await generateBusinessReport(
+      inputs(ACTIONABLE, { omittedCount: 130, checksCompletedCount: 147 }), null,
+      { call: async () => gemini(body) });
+    expect(report.generatedBy).toBe('gemini');
+    expect(report.positive).toContain('147');
+  });
+
+  test('fabricated entity counts and spelled magnitudes are rejected', async () => {
+    const withCount = { ...GOOD_BODY, impacts: [{ evidenceIds: ['f1'], statement: 'Could expose 50 donor records.' }] };
+    await expect(generateBusinessReport(inputs(ACTIONABLE), null, { call: async () => gemini(withCount) }))
+      .rejects.toThrow();
+    const withMagnitude = { ...GOOD_BODY, overview: 'A breach could cost your clinic twelve million in recovery.' };
+    await expect(generateBusinessReport(inputs(ACTIONABLE), null, { call: async () => gemini(withMagnitude) }))
+      .rejects.toThrow();
+  });
+
+  test('MAX_TOKENS with a parseable body still yields a report', async () => {
+    const { report } = await generateBusinessReport(inputs(ACTIONABLE), null,
+      { call: async () => gemini(GOOD_BODY, 'MAX_TOKENS') });
+    expect(report.generatedBy).toBe('gemini');
+  });
+
+  test('when every impact has a dangling id, impacts fall back (never silently empty)', async () => {
+    const body = { ...GOOD_BODY, impacts: [{ evidenceIds: ['f9'], statement: 'dangling' }] };
+    const { report } = await generateBusinessReport(inputs(ACTIONABLE), null,
+      { call: async () => gemini(body) });
+    expect(report.impacts.length).toBeGreaterThan(0);
+  });
+
+  test('records the resolved model version from the response, not the -latest alias', async () => {
+    const raw = { ...gemini(GOOD_BODY), modelVersion: 'gemini-3.5-flash' };
+    const { model } = await generateBusinessReport(inputs(ACTIONABLE), null, { call: async () => raw });
+    expect(model).toBe('gemini-3.5-flash');
+  });
 });

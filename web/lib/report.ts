@@ -74,7 +74,6 @@ export interface SelectedFindings {
 
 const REPORT_LIMIT = 20;
 const PER_SOURCE_FLOOR = 2;
-const ALL_SOURCES: FindingSource[] = ['website', 'server', 'other'];
 
 /** Global rank: band → actively-exploited → severity → CVSS → EPSS (all ascending "better first"). */
 function rankKey(f: Finding): number[] {
@@ -112,17 +111,17 @@ export function selectForReport(findings: Finding[], limit = REPORT_LIMIT): Sele
   const ranked = [...deduped].sort(compareFindings);
   const target = Math.min(limit, ranked.length);
 
-  // 3. reserve a per-source floor from the top of each present source, then fill
-  //    the remaining slots by global rank.
+  // 3. reserve a per-source floor, then fill the rest by global rank. The floor pass walks `ranked`
+  //    in global-rank order (not a fixed source order), so even a tiny limit yields the top findings
+  //    by rank rather than whichever source is listed first.
   const chosen = new Set<Finding>();
-  for (const source of ALL_SOURCES) {
-    let taken = 0;
-    for (const f of ranked) {
-      if (chosen.size >= target || taken >= PER_SOURCE_FLOOR) break;
-      if (f.source !== source || chosen.has(f)) continue;
-      chosen.add(f);
-      taken += 1;
-    }
+  const perSource = new Map<FindingSource, number>();
+  for (const f of ranked) {
+    if (chosen.size >= target) break;
+    const taken = perSource.get(f.source) ?? 0;
+    if (taken >= PER_SOURCE_FLOOR) continue;
+    chosen.add(f);
+    perSource.set(f.source, taken + 1);
   }
   for (const f of ranked) {
     if (chosen.size >= target) break;

@@ -107,6 +107,7 @@ function buildPrompt(
 interface GeminiRaw {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
   promptFeedback?: { blockReason?: string };
+  modelVersion?: string; // resolved id (e.g. gemini-3.5-flash) — better for the audit trail than -latest
 }
 
 /** Pull the model's text out, treating blocks / bad finish reasons / empty content as failures. */
@@ -136,19 +137,32 @@ function parseJson(text: string): unknown {
   return JSON.parse(fenced.slice(start, end + 1));
 }
 
-/** Reject fabricated figures/compliance claims. Long numbers are allowed only if they appear in
- *  the evidence (e.g. an echoed year); money, percentages and named laws are forbidden outright. */
-function violatesGrounding(r: BusinessReport, evidence: Evidence[]): boolean {
+/** Reject fabricated figures/compliance claims while allowing the grounded numbers the prompt
+ *  mandates. Money, percentages, named laws, spelled-out magnitudes and entity counts are forbidden
+ *  outright; a long number is allowed only if it appears in the evidence or is one of the two counts
+ *  the prompt tells the model to state (checksCompleted / omitted). */
+function violatesGrounding(r: BusinessReport, evidence: Evidence[], allowedCounts: number[]): boolean {
   const out = [r.overview, ...r.impacts.map((i) => i.statement), r.positive].join(' ');
-  if (/\$\s?\d/.test(out)) return true;
-  if (/\d+\s?%/.test(out)) return true;
-  if (/\b(GDPR|HIPAA|PCI(?:\s?DSS)?|SOC\s?2)\b/i.test(out)) return true;
-  const allowed = new Set(JSON.stringify(evidence).match(/\d{3,}/g) ?? []);
-  for (const n of out.match(/\d{3,}/g) ?? []) if (!allowed.has(n)) return true;
+  if (/\$\s?\d/.test(out)) return true;                                       // money
+  if (/\d+\s?%/.test(out)) return true;                                       // percentages
+  if (/\b(GDPR|HIPAA|PCI(?:\s?DSS)?|SOC\s?2)\b/i.test(out)) return true;      // named laws
+  if (/\b(thousand|million|billion|trillion)\b/i.test(out)) return true;      // spelled magnitudes
+  // fabricated entity counts, e.g. "50 donor records", "3 customers", "5 dollars"
+  if (/\b\d+\s+(customer|client|donor|patient|user|member|record|account|file|dollar|euro|pound)s?\b/i.test(out)) {
+    return true;
+  }
+  const allowed = new Set<string>([
+    ...(JSON.stringify(evidence).match(/\d{3,}/g) ?? []),
+    ...allowedCounts.map(String),
+  ]);
+  const scanned = out.replace(/,/g, ''); // "1,300" -> "1300" so it matches a whitelisted count
+  for (const n of scanned.match(/\d{3,}/g) ?? []) if (!allowed.has(n)) return true;
   return false;
 }
 
-function shapeReport(parsed: unknown, evidence: Evidence[], fallback: BusinessReport): BusinessReport {
+function shapeReport(
+  parsed: unknown, evidence: Evidence[], fallback: BusinessReport, allowedCounts: number[],
+): BusinessReport {
   const p = (parsed ?? {}) as Record<string, unknown>;
   const validIds = new Set(evidence.map((e) => e.id));
   const impacts: BusinessImpact[] = (Array.isArray(p.impacts) ? p.impacts : [])
@@ -170,7 +184,7 @@ function shapeReport(parsed: unknown, evidence: Evidence[], fallback: BusinessRe
     positive: clean(p.positive, 500) || fallback.positive,
     generatedBy: 'gemini',
   };
-  if (violatesGrounding(report, evidence)) {
+  if (violatesGrounding(report, evidence, allowedCounts)) {
     throw new Error('gemini: output contained fabricated figures or compliance claims');
   }
   return report;
@@ -253,12 +267,16 @@ export async function generateBusinessReport(
   const actionable = inputs.selected.filter((f) => f.confidence !== 'no_issue');
   if (actionable.length === 0) return { report: fallback, model: 'deterministic-fallback' };
 
-  const model = deps.model ?? process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
-  const call = deps.call ?? defaultGeminiCall(deps.apiKey ?? process.env.GEMINI_API_KEY, model);
+  const requestModel = deps.model ?? process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
+  const call = deps.call ?? defaultGeminiCall(deps.apiKey ?? process.env.GEMINI_API_KEY, requestModel);
 
   const evidence = buildEvidence(inputs.selected);
   const prompt = buildPrompt(evidence, orgContext, inputs.omittedCount, inputs.checksCompletedCount);
   const raw = await call(prompt);
-  const report = shapeReport(parseJson(extractText(raw)), evidence, fallback);
-  return { report, model };
+  const report = shapeReport(
+    parseJson(extractText(raw)), evidence, fallback,
+    [inputs.omittedCount, inputs.checksCompletedCount],
+  );
+  // Prefer the resolved model id (e.g. gemini-3.5-flash) over the "-latest" alias for auditability.
+  return { report, model: raw.modelVersion ?? requestModel };
 }

@@ -51,6 +51,10 @@ export default async function AuthorizationPage({
         denial-of-service testing, password attacks, exploitation, persistence, social engineering,
         or scanning other domains and subdomains.
       </p>
+      <p className="mt-2 leading-relaxed text-ink-soft">
+        To produce the plain-language summary in the report, the findings and any organization
+        details provided are sent to Google Gemini, a third-party AI service.
+      </p>
       <h2 className="mt-6 font-display text-xl font-semibold">Acknowledgement</h2>
       <p className="mt-2 leading-relaxed text-ink-soft">
         By accepting the wizard statement, {a.authorizedBy} represented that they own the target or
