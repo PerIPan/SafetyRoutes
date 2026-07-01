@@ -304,10 +304,18 @@ export default function NewScan() {
               <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-route-deep">
                 Tailor your report · optional
               </p>
-              <p className="mb-4 mt-1 text-[13px] leading-snug text-ink-soft">
+              <p className="mb-3 mt-1 text-[13px] leading-snug text-ink-soft">
                 A few words about your organization help us explain what each finding means for the
                 people you serve. Leave blank to skip — you can always come back to this step.
               </p>
+              <div className="mb-4 rounded-lg border border-[#C2E1DF] bg-[#F1FAFA] px-3.5 py-3 text-[12.5px] leading-snug text-ink-soft">
+                <span className="font-semibold text-route-deep">How your report is written:</span>{" "}
+                once the checks finish, your findings plus the details below are sent to Google
+                Gemini, which writes a short plain-language business-impact summary at the top of
+                your report. It uses only your findings and these details — it won&apos;t invent
+                figures, losses, or compliance claims. If the AI is unavailable, a built-in template
+                is used instead.
+              </div>
               <Field label="Organization name">
                 <input
                   value={organizationName}
