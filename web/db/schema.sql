@@ -169,7 +169,9 @@ CREATE INDEX IF NOT EXISTS idx_trivy_inbox_org ON trivy_inbox(org_id, received_a
 ALTER TABLE trivy_uploads DROP CONSTRAINT IF EXISTS trivy_uploads_idempotency_key_key;
 DO $$ BEGIN
   ALTER TABLE trivy_uploads ADD CONSTRAINT uq_trivy_upload_idem UNIQUE (scan_id, idempotency_key);
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+-- duplicate_object = constraint name taken; duplicate_table = its backing index taken. Catch both
+-- so re-running the migration is idempotent.
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null; END $$;
 
 -- Business-impact report (Gemini) + authorization/consent record.
 --   authorization_snapshot: IMMUTABLE consent terms captured at scan creation; printed
