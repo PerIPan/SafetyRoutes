@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Modal, HelpLink } from "@/components/modal";
 
 /** Integrated Trivy ingest for the report page: a copy-paste one-liner that runs Trivy in Docker
  *  on the user's own server and POSTs the result straight to our ingest endpoint (no manual file
@@ -20,6 +21,7 @@ export function ServerCheck({
 }) {
   const router = useRouter();
   const [winOrigin, setWinOrigin] = useState("");
+  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -79,31 +81,17 @@ export function ServerCheck({
         Server packages · Trivy
       </div>
       <h2 className="mt-1 font-display text-[20px] font-semibold text-ink">
-        {hasServerFindings ? "Re-check a server" : "Check a server (optional)"}
+        {hasServerFindings ? "Re-check a server" : "Add a server to this report"}
       </h2>
       <p className="mt-1 max-w-[64ch] text-[13.5px] leading-relaxed text-ink-soft">
-        Run this on a server you own. It lists the software installed there and sends only the
-        vulnerability report back to SafetyRoutes — your files and data never leave the machine.
-        Needs Docker.
+        {hasServerFindings
+          ? "Server results come in automatically from the collector you set up. Run a one-off check to refresh them on this report, or upload a newer Trivy report."
+          : "Server results come in automatically once you set up the collector. Want to add them to this report now? Run a one-off check, or upload a Trivy report."}
       </p>
 
-      <div className="relative mt-3">
-        <pre className="overflow-x-auto rounded-xl border border-[#21424C] bg-[#10262F] px-4 py-3.5 pr-16 font-mono text-[12px] leading-relaxed text-[#CDE7E6]">
-          {cmd}
-        </pre>
-        <button
-          onClick={copy}
-          className="absolute right-2 top-2 rounded-md bg-[#21424C] px-2.5 py-1 font-mono text-[11px] text-[#CDE7E6] hover:bg-[#2C5A68]"
-        >
-          {copied ? "copied ✓" : "copy"}
-        </button>
+      <div className="mt-3">
+        <HelpLink onClick={() => setOpen(true)} label="How to check a server →" />
       </div>
-
-      {token && (
-        <p className="mt-2 text-[12px] text-muted">
-          The token in the link is unique to this scan — don’t share this command outside your team.
-        </p>
-      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-ink-soft">
         <span className="text-muted">Already have a Trivy report file?</span>
@@ -117,6 +105,62 @@ export function ServerCheck({
         {busy && <span className="text-muted">importing…</span>}
         {msg && <span className="font-medium text-route-deep">{msg}</span>}
       </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        eyebrow="Server packages · Trivy"
+        title="Check a server you own"
+        titleId="server-check-help"
+        footer={
+          <button
+            onClick={() => setOpen(false)}
+            className="rounded-xl bg-route px-5 py-2.5 text-[14px] font-semibold text-white"
+          >
+            Got it
+          </button>
+        }
+      >
+        <p className="text-[13.5px] leading-relaxed text-ink-soft">
+          Run this on a server you own to add its package vulnerabilities to{" "}
+          <b className="text-ink">this</b> report. Trivy runs <b className="text-ink">on your machine</b>{" "}
+          and only the JSON report is sent back — your files and data never leave the server. Needs
+          Docker.
+        </p>
+
+        <div className="relative mt-3">
+          <pre className="overflow-x-auto rounded-xl border border-[#21424C] bg-[#10262F] px-4 py-3.5 pr-16 font-mono text-[12px] leading-relaxed text-[#CDE7E6]">
+            {cmd}
+          </pre>
+          <button
+            onClick={copy}
+            className="absolute right-2 top-2 rounded-md bg-[#21424C] px-2.5 py-1 font-mono text-[11px] text-[#CDE7E6] hover:bg-[#2C5A68]"
+          >
+            {copied ? "copied ✓" : "copy"}
+          </button>
+        </div>
+
+        {token && (
+          <p className="mt-2 text-[12px] text-muted">
+            The token in the link is unique to this scan — don’t share this command outside your team.
+          </p>
+        )}
+
+        <p className="mt-4 text-[13px] font-semibold text-ink">Checking servers regularly?</p>
+        <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
+          Install the scheduled collector once and every future report includes fresh server results
+          automatically — set it up from the <b className="text-ink">Server packages</b> step in the{" "}
+          <a href="/new" className="text-route-deep underline">
+            wizard
+          </a>
+          .
+        </p>
+
+        <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
+          Each vulnerability is enriched via <b className="text-ink">MITRE Explorer</b> — CVSS
+          severity, the KEV “known-exploited” flag, and MITRE ATT&amp;CK techniques.
+        </p>
+      </Modal>
     </section>
   );
 }

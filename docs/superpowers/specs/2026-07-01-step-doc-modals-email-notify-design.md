@@ -136,7 +136,7 @@ cross-referenced against MITRE Explorer for CVE detail.
 
 **Website (`website`).** Enter a site you own (`https://…`) or tick the built-in **DVWA** test target;
 authorization + consent and *why* (read-only, only sites you're allowed to test); optional name
-recorded with consent; depth levels (Basic/Standard/Thorough) in brief → point to the existing
+recorded with consent; depth levels (Essentials/Standard/Thorough) in brief → point to the existing
 "Which should I pick" interactive picker; **CDN/Cloudflare gotcha** (deeper network checks may be
 blocked; Dev Mode doesn't help). Reassure: read-only, changes nothing.
 

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brand } from "@/components/ui";
 import { DepthHelp } from "@/components/depth-help";
+import { StepHelpLink } from "@/components/step-help";
 import { ServerStep } from "@/components/server-step";
 import { SCAN_PROFILE_META } from "@/lib/scan-profiles";
 
@@ -243,6 +244,7 @@ export default function NewScan() {
             eyebrow="What to check"
             title="What would you like to check?"
             lede="Pick one or more. Each one is optional — choose what fits your organization, and we'll merge everything into a single plain-language report."
+            help={<StepHelpLink stepKey="select" />}
           >
             <div className="grid max-w-[680px] gap-3">
               {OPTIONS.map((o) => {
@@ -293,6 +295,7 @@ export default function NewScan() {
             eyebrow="Website"
             title="Which website should we check?"
             lede="The website scan is read-only and only ever runs against sites you're authorized to test."
+            help={<StepHelpLink stepKey="website" />}
           >
             <div className="mb-4 max-w-[560px]">
               <label className="mb-1.5 block text-[13px] font-semibold text-ink">
@@ -423,6 +426,7 @@ export default function NewScan() {
             eyebrow="Other software · manual"
             title="Software on your computers?"
             lede="List desktop or office software you use. We can't scan it, but we'll match each one against MITRE Explorer and flag the known issues to check — marked Advisory."
+            help={<StepHelpLink stepKey="software" />}
           >
             <div className="max-w-[680px] rounded-xl border border-line">
               <div className="grid grid-cols-[1.4fr_1fr_0.9fr_36px] gap-3 rounded-t-xl bg-[#F4F6F5] px-4 py-2.5 font-mono text-[11px] uppercase tracking-wide text-muted">
@@ -565,6 +569,7 @@ export default function NewScan() {
             eyebrow="Run the check"
             title="Ready when you are."
             lede="We'll check what you provided and write a single plain-language report."
+            help={<StepHelpLink stepKey="run" />}
           >
             <ul className="max-w-[560px] space-y-2 text-[14px] text-ink-soft">
               {selected.website && (
@@ -664,11 +669,13 @@ function Section({
   eyebrow,
   title,
   lede,
+  help,
   children,
 }: {
   eyebrow: string;
   title: string;
   lede: string;
+  help?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -679,7 +686,11 @@ function Section({
       <h1 className="mb-3 max-w-[20ch] font-display text-[32px] font-semibold leading-tight tracking-tight text-ink">
         {title}
       </h1>
-      <p className="mb-6 max-w-[58ch] text-[15.5px] leading-relaxed text-ink-soft">{lede}</p>
+      <p className="mb-2 max-w-[58ch] text-[15.5px] leading-relaxed text-ink-soft">{lede}</p>
+      {/* help trigger sits ~8px under the lede; the server step renders its own HelpLink as its
+          first child (it needs a live token), so no spacer is emitted there — keeps the lede→trigger
+          gap identical across every step. */}
+      {help && <div className="mb-6">{help}</div>}
       {children}
     </div>
   );

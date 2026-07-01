@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Modal, HelpLink } from "@/components/modal";
 
 /** Wizard "Server packages" step. The host-side collector pushes a Trivy report to the inbox on a
  *  schedule, so this step's happy path is "a report is already waiting — we'll include it." It also
@@ -87,6 +88,8 @@ export function ServerStep({
 
   return (
     <div className="space-y-4">
+      <HelpLink onClick={() => setShowSetup(true)} />
+
       {/* Waiting-report card — the happy path */}
       {waitingReport && !manualName ? (
         <div
@@ -128,33 +131,49 @@ export function ServerStep({
         <div className="rounded-xl border-[1.5px] border-dashed border-line bg-[#FAFDFC] px-5 py-4">
           <div className="text-[14px] font-semibold text-ink">No server report waiting yet</div>
           <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
-            Install the collector on a server you own (below) and it&apos;ll push a fresh report on a
-            schedule — then this step just picks it up. Or upload a report file now.
+            Install the collector on a server you own and it&apos;ll push a fresh report on a schedule
+            — then this step just picks it up. Open <b className="text-ink">How this step works</b> for
+            the one-time setup command, or upload a report file now.
           </p>
         </div>
       )}
 
-      {/* One-time setup (collapsible) */}
-      <div className="rounded-xl border border-line bg-surface">
-        <button
-          type="button"
-          onClick={() => setShowSetup((s) => !s)}
-          className="flex w-full items-center justify-between px-5 py-3 text-left"
-        >
-          <span className="text-[13.5px] font-semibold text-ink">
-            {showSetup ? "▾" : "▸"} Connect your server (one-time setup)
-          </span>
-          <span className="font-mono text-[11px] text-muted">push to SafetyRoutes</span>
-        </button>
-        {showSetup &&
-          (status ? (
-            <div className="border-t border-line px-5 py-4">
-              <p className="mb-2 max-w-[64ch] text-[13px] leading-relaxed text-ink-soft">
-              Run this on a server you own to push a report now. To keep it always-fresh, put it on a
-              schedule (cron / Task Scheduler) — see <b>scripts/sr-trivy-collector.sh</b> in the repo.
-              The token below is your organization&apos;s — keep it private.
-            </p>
-            <div className="relative">
+      {/* Manual fallback */}
+      <div className="flex flex-wrap items-center gap-3 text-[13px] text-ink-soft">
+        <span className="text-muted">Already have a Trivy report file?</span>
+        <input type="file" accept="application/json,.json" onChange={onFile} className="text-[12px]" />
+        {manualName && <span className="font-mono text-[12px] text-safe">✓ {manualName} ready</span>}
+      </div>
+
+      <Modal
+        open={showSetup}
+        onClose={() => setShowSetup(false)}
+        eyebrow="Server packages · Trivy"
+        title="Checking a server you own"
+        titleId="server-step-help"
+        footer={
+          <button
+            onClick={() => setShowSetup(false)}
+            className="rounded-xl bg-route px-5 py-2.5 text-[14px] font-semibold text-white"
+          >
+            Got it
+          </button>
+        }
+      >
+        <p className="text-[13.5px] leading-relaxed text-ink-soft">
+          Your server&apos;s installed packages are checked with <b className="text-ink">Trivy</b>,
+          which runs <b className="text-ink">on your own machine</b>. A small collector pushes only the
+          resulting vulnerability report to SafetyRoutes —{" "}
+          <b className="text-ink">your files and data never leave the server</b>. Set it up once and it
+          keeps a fresh report waiting, so this step just picks it up.
+        </p>
+
+        <p className="mt-4 text-[13px] font-semibold text-ink">
+          One-time setup — run this on a server you own
+        </p>
+        {status ? (
+          <>
+            <div className="relative mt-2">
               <pre className="overflow-x-auto rounded-xl border border-[#21424C] bg-[#10262F] px-4 py-3.5 pr-16 font-mono text-[11.5px] leading-relaxed text-[#CDE7E6]">
                 {cmd}
               </pre>
@@ -166,21 +185,31 @@ export function ServerStep({
                 {copied ? "copied ✓" : "copy"}
               </button>
             </div>
-              <p className="mt-2 font-mono text-[11px] text-muted">
-                Execution stays on your host — SafetyRoutes only receives the JSON report.
-              </p>
-            </div>
-          ) : (
-            <p className="border-t border-line px-5 py-4 text-[13px] text-muted">Loading…</p>
-          ))}
-      </div>
+            <p className="mt-2 font-mono text-[11px] text-muted">
+              The token is your organization&apos;s — keep it private.
+            </p>
+          </>
+        ) : (
+          <p className="mt-2 text-[13px] text-muted">Loading your setup command…</p>
+        )}
 
-      {/* Manual fallback */}
-      <div className="flex flex-wrap items-center gap-3 text-[13px] text-ink-soft">
-        <span className="text-muted">Already have a Trivy report file?</span>
-        <input type="file" accept="application/json,.json" onChange={onFile} className="text-[12px]" />
-        {manualName && <span className="font-mono text-[12px] text-safe">✓ {manualName} ready</span>}
-      </div>
+        <p className="mt-4 text-[13px] font-semibold text-ink">Keep it fresh</p>
+        <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
+          Put the command on a schedule (cron / Task Scheduler) so a new report is always waiting — see{" "}
+          <b className="text-ink">scripts/sr-trivy-collector.sh</b> in the repo for a ready-made script.
+        </p>
+
+        <p className="mt-4 text-[13px] font-semibold text-ink">Prefer to do it by hand?</p>
+        <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
+          You can also upload a Trivy JSON report directly on this step — no collector needed.
+        </p>
+
+        <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
+          Each vulnerability is enriched via <b className="text-ink">MITRE Explorer</b> — CVSS
+          severity, the KEV “known-exploited” flag, and MITRE ATT&amp;CK techniques — and explained in
+          plain language on your report.
+        </p>
+      </Modal>
     </div>
   );
 }

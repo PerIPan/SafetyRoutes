@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FindingSource, SourceStatus } from "@/lib/types";
+import { EmailNotifyButton } from "@/components/email-notify";
 
 const isRunning = (s: Partial<Record<string, SourceStatus>>) =>
   Object.values(s).some((v) => v && (v.status === "running" || v.status === "pending"));
@@ -62,6 +63,7 @@ export function ReportActions({
       >
         {copied ? "Link copied ✓" : "Copy share link"}
       </button>
+      <EmailNotifyButton />
       <div className="flex-1" />
       <button
         disabled={running}
