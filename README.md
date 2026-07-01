@@ -210,6 +210,11 @@ flowchart TD
     P2 --> X
     O2 --> X
     X --> R["One report, source-tagged<br/>Confirmed (Website, Server) · Advisory (Other) · No issue"]
+    R --> C["Deterministic classifier ranks and selects the top findings"]
+    B -. org details .-> G
+    W -. short profile from the org's own website .-> G
+    C --> G["Google Gemini writes a plain-language<br/>business-impact summary — grounded in findings,<br/>template fallback if unavailable"]
+    G --> T["Business-impact summary shown at the top of the report"]
 ```
 
 1. **Opt in** — the organization gives permission; we record consent.
@@ -223,6 +228,10 @@ flowchart TD
 6. **Enrich** → MITRE Explorer adds CVE detail, KEV/EPSS priority, and plain-language context.
 7. **Report** → one source-tagged report: **Confirmed** (Website, Server) · **Advisory** (Other,
    verify locally) · **No issue found**.
+8. **Business-impact summary** → a deterministic classifier ranks the findings, then **Google
+   Gemini** writes a plain-language summary at the top of the report — grounded in the findings and
+   tailored with the org details from the wizard plus a short profile derived from the org's own
+   website (a deterministic template is used if the AI is unavailable).
 
 ## The app
 
