@@ -63,6 +63,13 @@ export default function NewScan() {
   const [consentBy, setConsentBy] = useState("");
   const [consent, setConsent] = useState(false);
   const [profile, setProfile] = useState("standard");
+
+  // Optional org context — tailors the plain-language business-impact summary (sent to Gemini).
+  const [organizationName, setOrganizationName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [whatOrgDoes, setWhatOrgDoes] = useState("");
+  const [whoWeServe, setWhoWeServe] = useState("");
+  const [sensitiveData, setSensitiveData] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
 
   // Stable row ids (NOT array index) so React reconciles correctly across add/remove and the
@@ -157,6 +164,11 @@ export default function NewScan() {
           ownershipVerified: true,
           ownershipMethod: useDvwa ? "internal-test-target" : "owner-allowlist",
           profile,
+          organizationName: organizationName.trim() || null,
+          contactEmail: contactEmail.trim() || null,
+          whatOrgDoes: whatOrgDoes.trim() || null,
+          whoWeServe: whoWeServe.trim() || null,
+          sensitiveData: sensitiveData.trim() || null,
         }),
       });
       const { id } = await scanRes.json();
@@ -597,6 +609,61 @@ export default function NewScan() {
                 </li>
               )}
             </ul>
+
+            <div className="mt-7 max-w-[560px] rounded-xl border border-line bg-[#FBFDFC] p-5">
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-route-deep">
+                Tailor your report · optional
+              </p>
+              <p className="mb-4 mt-1 text-[13px] leading-snug text-ink-soft">
+                A few words about your organization help us explain what each finding means for the
+                people you serve. Leave blank to skip.
+              </p>
+              <Field label="Organization name">
+                <input
+                  value={organizationName}
+                  onChange={(e) => setOrganizationName(e.target.value)}
+                  placeholder="Riverside Community Clinic"
+                  className="w-full rounded-xl border-[1.5px] border-line bg-white px-4 py-3 text-[15px] text-ink outline-none"
+                />
+              </Field>
+              <Field label="Contact email (optional)">
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="security@example.org"
+                  className="w-full rounded-xl border-[1.5px] border-line bg-white px-4 py-3 text-[15px] text-ink outline-none"
+                />
+              </Field>
+              <Field label="What does your organization do?">
+                <input
+                  value={whatOrgDoes}
+                  onChange={(e) => setWhatOrgDoes(e.target.value)}
+                  placeholder="e.g. a small community health clinic"
+                  className="w-full rounded-xl border-[1.5px] border-line bg-white px-4 py-3 text-[15px] text-ink outline-none"
+                />
+              </Field>
+              <Field label="Who do you serve?">
+                <input
+                  value={whoWeServe}
+                  onChange={(e) => setWhoWeServe(e.target.value)}
+                  placeholder="e.g. patients and local donors"
+                  className="w-full rounded-xl border-[1.5px] border-line bg-white px-4 py-3 text-[15px] text-ink outline-none"
+                />
+              </Field>
+              <Field label="Sensitive data you hold">
+                <input
+                  value={sensitiveData}
+                  onChange={(e) => setSensitiveData(e.target.value)}
+                  placeholder="e.g. donor payment details, health records"
+                  className="w-full rounded-xl border-[1.5px] border-line bg-white px-4 py-3 text-[15px] text-ink outline-none"
+                />
+                <p className="mt-1.5 text-[11px] leading-snug text-muted">
+                  Used only to tailor your report — sent to Google Gemini along with the findings.
+                </p>
+              </Field>
+            </div>
+
             {error && <p className="mt-4 max-w-[560px] text-[13px] text-risk">{error}</p>}
           </Section>
         )}
