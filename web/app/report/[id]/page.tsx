@@ -6,6 +6,7 @@ import { getFindings } from "@/lib/findings";
 import { buildReport } from "@/lib/report";
 import { Brand } from "@/components/ui";
 import { ScanLive } from "@/components/scan-live";
+import { BusinessSummary } from "@/components/business-summary";
 import { FindingsView } from "@/components/findings-view";
 import { ReportActions } from "@/components/report-actions";
 import { ServerCheck } from "@/components/server-check";
@@ -61,6 +62,10 @@ export default async function ReportPage({
 
       <ScanLive scanId={id} initial={scan.sourceStatus} />
 
+      {!scanning && findings.length > 0 && (
+        <BusinessSummary scanId={id} initial={scan.businessReport} />
+      )}
+
       {summary.kevCount > 0 && (
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#E7C3B8] bg-[#FBEAE4] px-4 py-3.5">
           <span className="text-[18px] leading-none">⚑</span>
@@ -111,6 +116,14 @@ export default async function ReportPage({
       />
 
       <ReportActions scanId={id} initial={scan.sourceStatus} />
+
+      {scan.authorization && (
+        <p className="mt-6 font-mono text-[11px] text-muted">
+          <Link href={`/report/${id}/authorization`} className="text-route-deep underline">
+            View the scan authorization record →
+          </Link>
+        </p>
+      )}
     </main>
   );
 }
