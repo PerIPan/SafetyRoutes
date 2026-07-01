@@ -42,14 +42,21 @@ non-technical user runs the wizard. Full phased plan + folded-in architect/secur
 - [ ] Phase 2 — wizard auto-adoption (copy blob → **non-destructive merge**; staleness surfaced; manual upload fallback)
 - [ ] Phase 3 — "Connect your server" setup panel + README "Automatic server scanning"
 
-### 2. LLM business-impact summarizer  — design presented, not built
-Uses **local subscription Claude (not an API)**. Reads the LCO's website + light online research,
-combines it with the three vulnerability sets, and writes a **soft-worded** business-impact summary
-with a **realistic timeline** (who-they-are / what-this-means / a-plan).
-- [ ] schema: `scans.impact_summary` (text/jsonb) + report card UI
-- [ ] pipeline: site text + web research + 3 finding sets → summary (tone rules: reassure, don't alarm)
-- [ ] Path A (in-session) vs Path B (headless `claude -p`) — pick per run
-- [ ] store + render; regenerate on demand
+### 2. Gemini business-impact report  — design approved (spec written), building now
+**Revamped approach** (was local Claude): deterministic pre-classifier → **Google Gemini**
+(`gemini-flash-latest`, API) → grounded business-impact summary at the **top** of the report,
+tailored via 3 optional org-context wizard fields. Deterministic template = fallback. Salvages
+dev's scaffolding onto `main` (no branching), drops Ollama, keeps the printable auth page.
+Full design + folded-in architect/ai-engineer review:
+**[docs/superpowers/specs/2026-07-01-gemini-business-impact-report-design.md](docs/superpowers/specs/2026-07-01-gemini-business-impact-report-design.md)**
+
+- [x] **P1 Foundation (TDD):** types (BusinessReport w/ impacts[], OrgContext, AuthorizationSnapshot) · 5 schema cols · `rowToFinding` idempotencyKey fix · `selectForReport` in report.ts (dedupe→band sort→per-source floor→top 20) + tests proving Trivy-CVE-burial fix
+- [x] **P2 Persistence + cache-bust:** `createScan`/`rowToScan`/`saveBusinessReport` · `replaceSourceFindings` nulls business_report* in-txn
+- [x] **P3 LLM adapter (TDD):** `fallbackBusinessReport(selected, omittedCount)` · Gemini client (responseSchema + safetySettings BLOCK_ONLY_HIGH + finishReason branching + 15s + no-numbers post-filter + thinkingBudget=0) · injected-transport tests
+- [x] **P4 Route:** GET/POST orchestration + audit + fallback
+- [x] **P5 Wizard:** org name + contact email + whatOrgDoes/whoWeServe/sensitiveData (+ "sent to Google" note) → POST
+- [x] **P6 Presentation:** `business-summary.tsx` (render impacts) mounted top-of-report · port `authorization/page.tsx` + `print-button.tsx`
+- [x] **P7 Verify:** `next build` + tsc + 38 tests green · live Gemini smoke passed (clinic report, grounded, no fabricated figures) · migration applied
 
 ---
 
