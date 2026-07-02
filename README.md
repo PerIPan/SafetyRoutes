@@ -235,16 +235,49 @@ flowchart TD
 
 ## The app
 
-> _Screenshots are temporarily removed while the wizard is being reworked — a selection-first
-> flow (pick which of the three checks to run), reordered steps (Website → Software → Server
-> last), a built-in test target, and automatic server-report collection. A fresh walkthrough
-> will be added once the interface settles._
-
-The wizard collects up to three inputs, then merges everything into one source-tagged,
-plain-language report: **Confirmed** (Website / Server) · **Advisory — verify** (Other) ·
-**No issue found**. At the top sits an **AI business-impact summary** written by Google Gemini —
-grounded in the findings, tailored with the org details entered in the wizard and a short profile
+The wizard walks through a **five-step guided check**, then merges everything into one
+source-tagged, plain-language report topped by an **AI business-impact summary** (Google Gemini) —
+grounded in the findings, tailored with the org details from the wizard and a short profile
 auto-derived from the org's own website, with a deterministic template as fallback.
+
+**1 · What to check** — pick any of the three checks; optionally add a few words about your
+organization so the summary can be tailored to the people you serve.
+
+![What to check](docs/screenshots/01-what-to-check.png)
+
+**2 · Website** — a read-only **Artemis + Nuclei** scan of a site you're authorized to test, with a
+scan-depth choice (Essentials / Standard / Thorough).
+
+![Website step](docs/screenshots/03-website.png)
+
+**3 · Other software** — vendor / product / version, matched in **MITRE Explorer** and flagged
+**Advisory — verify locally**.
+
+![Other software step](docs/screenshots/05-other-software.png)
+
+**4 · Server packages** — the collector's **Trivy** report, usually already waiting (or upload one).
+
+![Server packages step](docs/screenshots/06-server-packages.png)
+
+**5 · Run the check** — a plain summary of everything you provided.
+
+![Run the check](docs/screenshots/07-run.png)
+
+**Your report** — one source-tagged report (**Confirmed** · **Advisory — verify** · **No issue
+found**), led by the plain-language business-impact summary.
+
+![Report](docs/screenshots/08-report.png)
+
+Every step carries a **"How this step works"** explainer, and the website step opens a side-by-side
+scan-depth comparison:
+
+![Step explainer](docs/screenshots/02-help-modal.png)
+![Scan-depth help](docs/screenshots/04-scan-depth-help.png)
+
+The **executive summary** up close — written by Gemini, grounded in the findings, with a
+deterministic fallback:
+
+![Executive summary](docs/screenshots/09-executive-summary.png)
 
 ## CVE data — the mitre-explorer API
 
