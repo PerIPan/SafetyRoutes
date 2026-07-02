@@ -426,7 +426,7 @@ cd web
 npm install
 # create web/.env.local with:
 #   DATABASE_URL=postgres://…@localhost:5433/safetyroutes
-#   ARTEMIS_API_URL=http://localhost:5000      # the Artemis you set up below
+#   ARTEMIS_API_URL=http://localhost:5001      # the Artemis you set up below
 #   ARTEMIS_API_TOKEN=…                         # from Artemis's .env (API_TOKEN)
 #   MITRE_BASE_URL=https://mitre-explorer.org
 #   SCAN_ALLOWLIST=example.org,test.org         # domains you're authorized to scan (CSV)
@@ -464,13 +464,13 @@ cp env.example .env
 ```
 
 First run pulls images and the ~13 K nuclei templates — give it a few minutes. The Artemis UI
-is then at **http://localhost:5000** (log in with the `FRONTEND_*` creds). Confirm the workers are
+is then at **http://localhost:5001** (log in with the `FRONTEND_*` creds). Confirm the workers are
 up: `docker ps | grep karton`.
 
 **3 — Point SafetyRoutes at it** — in `web/.env.local`:
 
 ```
-ARTEMIS_API_URL=http://localhost:5000
+ARTEMIS_API_URL=http://localhost:5001
 ARTEMIS_API_TOKEN=<the API_TOKEN from Artemis's .env>
 ```
 
@@ -553,7 +553,7 @@ Everything runs locally, so you can watch each moving part while a check is in f
 | Piece | Watch it at |
 |-------|-------------|
 | **SafetyRoutes app** | `http://localhost:3000` — the report page (`/report/<id>`) updates live as each source finishes; the `npm run dev` terminal logs every tier and audit event |
-| **Artemis** (website engine) | Its own web UI at **`http://localhost:5000`** (log in with your `FRONTEND_*` creds) — watch analyses and per-task progress in real time |
+| **Artemis** (website engine) | Its own web UI at **`http://localhost:5001`** (log in with your `FRONTEND_*` creds) — watch analyses and per-task progress in real time |
 | **Karton workers** (under Artemis) | `docker ps \| grep karton` to confirm they're up; `docker logs -f <container>` to tail a module |
 | **Trivy** | Collector-driven — watch the collector log (`/var/log/sr-collector.log`) and `GET /api/inbox/status` (is a report waiting). If you run `trivy server`, `curl <host>:4954/healthz` and `/version` |
 | **Postgres** (app DB) | The live tables: `scans`, `findings`, `scan_audit`, `trivy_inbox`, `mitre_cache` |
@@ -576,7 +576,7 @@ psql "$DATABASE_URL" -c \
 ```
 
 The app DB is the Compose `db` on `:5433` (or whatever `DATABASE_URL` points at). Trivy itself has
-**no results dashboard** — the report page and `scan_audit` are the closest thing; Artemis's `:5000`
+**no results dashboard** — the report page and `scan_audit` are the closest thing; Artemis's `:5001`
 UI is where you watch the website scan actually run.
 
 ## Responsible use
