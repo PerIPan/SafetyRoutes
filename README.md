@@ -546,6 +546,39 @@ caps the upload at 8 MB, rate-limits per token/IP, and stores an append-only his
 When a user runs the wizard with **Server packages** selected, it adopts the latest waiting report
 automatically — or they can still upload a `trivy fs` report file by hand.
 
+## Monitoring during the POC
+
+Everything runs locally, so you can watch each moving part while a check is in flight.
+
+| Piece | Watch it at |
+|-------|-------------|
+| **SafetyRoutes app** | `http://localhost:3000` — the report page (`/report/<id>`) updates live as each source finishes; the `npm run dev` terminal logs every tier and audit event |
+| **Artemis** (website engine) | Its own web UI at **`http://localhost:5000`** (log in with your `FRONTEND_*` creds) — watch analyses and per-task progress in real time |
+| **Karton workers** (under Artemis) | `docker ps \| grep karton` to confirm they're up; `docker logs -f <container>` to tail a module |
+| **Trivy** | Collector-driven — watch the collector log (`/var/log/sr-collector.log`) and `GET /api/inbox/status` (is a report waiting). If you run `trivy server`, `curl <host>:4954/healthz` and `/version` |
+| **Postgres** (app DB) | The live tables: `scans`, `findings`, `scan_audit`, `trivy_inbox`, `mitre_cache` |
+| **Gemini summary** | No dashboard — see the `scan_audit` events (`business_report_generated` / `business_report_fallback`) and the dev-server log; API usage/quota in Google AI Studio |
+
+App endpoints you can `curl` (all local):
+
+```bash
+curl -s localhost:3000/api/scans/<id>                  # scan + per-source status (what the page polls)
+curl -s localhost:3000/api/scans/<id>/findings         # findings as ingested
+curl -s localhost:3000/api/scans/<id>/business-report  # cached AI summary (null until first view)
+curl -s localhost:3000/api/inbox/status                # is a pushed Trivy report waiting
+```
+
+Tail the audit trail — every scan / enrich / report event lands in `scan_audit`:
+
+```bash
+psql "$DATABASE_URL" -c \
+  "SELECT created_at, event, detail FROM scan_audit ORDER BY created_at DESC LIMIT 20;"
+```
+
+The app DB is the Compose `db` on `:5433` (or whatever `DATABASE_URL` points at). Trivy itself has
+**no results dashboard** — the report page and `scan_audit` are the closest thing; Artemis's `:5000`
+UI is where you watch the website scan actually run.
+
 ## Responsible use
 
 SafetyRoutes is intended for **authorized security testing only**. Scan only systems you
