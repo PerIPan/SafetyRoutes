@@ -414,6 +414,24 @@ organizations at scale. The four proposals below map to the challenge goals.
       with a deterministic template fallback
 - [ ] _(stretch)_ Re-scan to confirm fixes and send reminders
 
+## Quick start
+
+Fastest path to a running app with a **sample report** — no Artemis or API key needed:
+
+```bash
+git clone https://github.com/PerIPan/SafetyRoutes && cd SafetyRoutes
+docker compose -f infra/docker-compose.yml up -d db     # bundled Postgres 16 on :5433
+cd web && npm install
+printf 'DATABASE_URL=postgres://safetyroutes:safetyroutes@localhost:5433/safetyroutes\n' > .env.local
+npm run db:migrate                                       # apply schema (idempotent)
+npm run db:seed                                          # sample data
+npm run dev                                              # http://localhost:3000
+```
+
+Open **http://localhost:3000/demo** for a seeded report (the AI summary falls back to the built-in
+template until you add `GEMINI_API_KEY`). To run **real checks**, add `GEMINI_API_KEY` and set up
+Artemis — see *"Getting started"* and *"Setting up the scanner"* below.
+
 ## Getting started
 
 The app lives in [`web/`](web) (Next.js + PostgreSQL). The website tier needs a running
@@ -421,9 +439,15 @@ The app lives in [`web/`](web) (Next.js + PostgreSQL). The website tier needs a 
 checking and its report is pushed by the collector or uploaded by hand (see *"Automatic server
 scanning"*).
 
+**Prerequisites:** **Node.js 20 LTS or newer** (Node 18 is past end-of-life), **Docker** with the
+**Compose v2** plugin (see *"Setting up the scanner"* below), and **PostgreSQL 16** — either the
+bundled container (`docker compose -f infra/docker-compose.yml up -d db`, which listens on
+`localhost:5433`) or your own local Postgres.
+
 ```bash
 cd web
 npm install
+docker compose -f ../infra/docker-compose.yml up -d db   # bundled Postgres on :5433 (skip if you use your own)
 # create web/.env.local with:
 #   DATABASE_URL=postgres://…@localhost:5433/safetyroutes
 #   ARTEMIS_API_URL=http://localhost:5001      # the Artemis you set up below
@@ -442,14 +466,21 @@ npm run dev            # http://localhost:3000
 
 The website tier needs **Artemis** running locally via Docker. On a fresh machine:
 
-**1 — Install Docker**
+**1 — Install Docker** (Engine 24+ / Docker Desktop 4.x) **with the Compose v2 plugin** — every
+command here uses `docker compose`, not the legacy `docker-compose`.
 
 - **macOS:** [Docker Desktop](https://www.docker.com/products/docker-desktop/), or the lighter
-  [Colima](https://github.com/abiosoft/colima): `brew install colima docker && colima start`
-- **Linux:** [Docker Engine](https://docs.docker.com/engine/install/) + the Compose plugin
+  [Colima](https://github.com/abiosoft/colima): `brew install colima docker && colima start --memory 8`
+- **Linux:** [Docker Engine](https://docs.docker.com/engine/install/) + the `docker-compose-plugin` package
 - **Windows:** Docker Desktop (WSL2 backend)
 
-Verify: `docker run --rm hello-world`.
+Verify both: `docker run --rm hello-world` and `docker compose version`.
+
+**Resources.** The Artemis stack (Karton workers + Redis + its own Postgres + a nuclei container) is
+the heavy part — give Docker **≥ 8 GB RAM** and **~10 GB free disk** (images + the ~13 K nuclei
+templates + vulnerability DBs). It will run with less, but scans crawl and workers can get
+OOM-killed. On Colima/Docker Desktop, size the VM to match (`colima start --memory 8`, or Docker
+Desktop → Settings → Resources).
 
 **2 — Get and start Artemis**
 
@@ -478,6 +509,10 @@ ARTEMIS_API_TOKEN=<the API_TOKEN from Artemis's .env>
 > container (default `artemis-karton-nuclei-1`), so SafetyRoutes must run on the **same host**
 > with Docker access. If your container name differs, set `NUCLEI_CONTAINER` (and `DOCKER_BIN`
 > if `docker` isn't at `/opt/homebrew/bin/docker`) in `web/.env.local`.
+
+**Ports used** (make sure they're free before starting): `3000` app · `5433` bundled Postgres ·
+`5001` Artemis UI + API · `4280` the DVWA test target. Artemis's Karton workers and Redis stay on
+its own internal Docker network.
 
 **Built-in test target (DVWA).** The wizard's website step has a "use the built-in DVWA test site"
 checkbox — [DVWA](https://github.com/digininja/DVWA) is a deliberately-vulnerable demo app, so you
