@@ -215,6 +215,20 @@ flowchart TD
     W -. short profile from the org's own website .-> G
     C --> G["Google Gemini writes a plain-language<br/>business-impact summary — grounded in findings,<br/>template fallback if unavailable"]
     G --> T["Business-impact summary shown at the top of the report"]
+
+    classDef start  fill:#E2F1F0,stroke:#0E9CA5,color:#0B3B40,stroke-width:1.5px;
+    classDef input  fill:#F1FAFA,stroke:#0E9CA5,color:#0B3B40;
+    classDef process fill:#FFFFFF,stroke:#9BB7BB,color:#33454A;
+    classDef enrich fill:#FBF0E0,stroke:#A6690F,color:#6B430A;
+    classDef report fill:#EEF2F1,stroke:#5C7A80,color:#25343A,stroke-width:1.5px;
+    classDef ai     fill:#EAF0FF,stroke:#3B6FB6,color:#1E3A5F,stroke-width:1.5px;
+
+    class A start;
+    class B,W,P,O input;
+    class W2,P2,O2 process;
+    class X enrich;
+    class R report;
+    class C,G,T ai;
 ```
 
 1. **Opt in** — the organization gives permission; we record consent.
@@ -267,6 +281,10 @@ scan-depth choice (Essentials / Standard / Thorough).
 found**), led by the plain-language business-impact summary.
 
 ![Report](docs/screenshots/08-report.png)
+
+Findings are **source-tagged and filterable**, each explained in plain language with a concrete fix:
+
+![Findings](docs/screenshots/10-findings.png)
 
 Every step carries a **"How this step works"** explainer, and the website step opens a side-by-side
 scan-depth comparison:

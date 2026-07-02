@@ -14,6 +14,7 @@ Captured against the live dev server (`cd web && npm run dev`) at 1280-wide, 2×
 | `07-run.png` | Step 5 — review of everything provided |
 | `08-report.png` | The report: Gemini executive summary + source-tagged findings |
 | `09-executive-summary.png` | The AI business-impact summary, up close |
+| `10-findings.png` | Source-tagged, filterable findings with plain-language explanations |
 
 Regenerate after UI changes: drive the running app with a headless browser
 (Playwright / `chromium-cli`) through the five steps + `/report/<id>` and re-shoot.
